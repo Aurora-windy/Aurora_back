@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: Aurora_back
+  datasource:
+    url: jdbc:mysql://localhost:3306/aurora?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=UTC
+    username: admin
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  session:
+    store-type: redis
+    # session 30 ???
+    timeout: 2592000
+  # Redis ??
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      password:
+server:
+  port: 1207
+  servlet:
+    context-path: /api
+    session:
+      cookie:
+        max-age: 2592000
+# springdoc-openapi ??
+springdoc:
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.aurora.aurora_back.controller
+# knife4j ??????
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+mybatis-flex:
+  configuration:
+    map-underscore-to-camel-case: false
