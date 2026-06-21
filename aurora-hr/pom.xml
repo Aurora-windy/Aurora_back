@@ -23,6 +23,12 @@
             <groupId>com.aurora</groupId>
             <artifactId>aurora-system</artifactId>
         </dependency>
+
+        <!-- EasyExcel 员工档案导出 -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+        </dependency>
     </dependencies>
 
 </project>
