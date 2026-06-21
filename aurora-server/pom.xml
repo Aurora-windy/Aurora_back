@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.aurora</groupId>
+        <artifactId>aurora-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>aurora-server</artifactId>
+    <name>aurora-server</name>
+    <description>聚合启动模块 - main 类、application.yml、Spring Boot 打包</description>
+
+    <dependencies>
+        <!-- 业务模块全部引入 -->
+        <dependency>
+            <groupId>com.aurora</groupId>
+            <artifactId>aurora-system</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aurora</groupId>
+            <artifactId>aurora-hr</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aurora</groupId>
+            <artifactId>aurora-edu</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aurora</groupId>
+            <artifactId>aurora-oj</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aurora</groupId>
+            <artifactId>aurora-mall</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aurora</groupId>
+            <artifactId>aurora-ai</artifactId>
+        </dependency>
+
+        <!-- 运行时依赖 -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>aurora-server</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.aurora.AuroraBackApplication</mainClass>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

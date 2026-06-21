@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.aurora</groupId>
+        <artifactId>aurora-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>aurora-oj</artifactId>
+    <name>aurora-oj</name>
+    <description>业务三 - 在线 OJ 编程判题（题目/测试用例/判题沙箱/错题本/榜单）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.aurora</groupId>
+            <artifactId>aurora-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aurora</groupId>
+            <artifactId>aurora-system</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
