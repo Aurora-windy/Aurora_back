@@ -1,6 +1,13 @@
 spring:
   application:
     name: aurora-server
+  autoconfigure:
+    exclude:
+      # aurora-mall 引入了 redisson-spring-boot-starter 为未来分布式锁准备，但目前电商模块
+      # 还没有代码使用 Redisson。Redisson 自动配置在启动时会强制连接 Redis 并发送 AUTH，
+      # 与本地无密码 Redis 不兼容；同时它创建的 RedisTemplate 是 <Object,Object>，与业务代码
+      # 需要的 <String,Object> 泛型不匹配。当 aurora-mall 真正需要 Redisson 时，移除此排除即可。
+      - org.redisson.spring.starter.RedissonAutoConfigurationV2
   datasource:
     url: jdbc:mysql://localhost:3306/aurora?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=UTC
     username: ${DB_USER:admin}
@@ -11,7 +18,6 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       database: 0
-      password: ${REDIS_PASSWORD:}
 
 server:
   port: 1207
