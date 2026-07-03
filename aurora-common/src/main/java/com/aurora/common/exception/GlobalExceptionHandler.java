@@ -1,5 +1,8 @@
 package com.aurora.common.exception;
 
+import cn.dev33.satoken.exception.NotLoginException;
+import cn.dev33.satoken.exception.NotRoleException;
+import cn.dev33.satoken.exception.SaTokenException;
 import com.aurora.common.response.BizCode;
 import com.aurora.common.response.Result;
 import jakarta.servlet.http.HttpServletRequest;
@@ -82,6 +85,33 @@ public class GlobalExceptionHandler {
     public Result<?> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
         log.warn("[方法不支持] {}", e.getMessage());
         return Result.fail(BizCode.OPERATION_FAIL.getCode(), "请求方法不支持: " + e.getMethod());
+    }
+
+    /**
+     * Sa-Token 未登录
+     */
+    @ExceptionHandler(NotLoginException.class)
+    public Result<?> handleNotLogin(NotLoginException e, HttpServletRequest req) {
+        log.warn("[未登录] {} {} -> {}", req.getMethod(), req.getRequestURI(), e.getMessage());
+        return Result.fail(BizCode.UNAUTHORIZED.getCode(), BizCode.UNAUTHORIZED.getMsg());
+    }
+
+    /**
+     * Sa-Token 角色不足
+     */
+    @ExceptionHandler(NotRoleException.class)
+    public Result<?> handleNotRole(NotRoleException e, HttpServletRequest req) {
+        log.warn("[权限不足] {} {} -> 需要 {}", req.getMethod(), req.getRequestURI(), e.getRole());
+        return Result.fail(BizCode.FORBIDDEN.getCode(), BizCode.FORBIDDEN.getMsg());
+    }
+
+    /**
+     * Sa-Token 其他异常（token 失效、被踢下线等）
+     */
+    @ExceptionHandler(SaTokenException.class)
+    public Result<?> handleSaToken(SaTokenException e, HttpServletRequest req) {
+        log.warn("[Sa-Token] {} {} -> code={} msg={}", req.getMethod(), req.getRequestURI(), e.getCode(), e.getMessage());
+        return Result.fail(BizCode.UNAUTHORIZED.getCode(), BizCode.UNAUTHORIZED.getMsg());
     }
 
     /**

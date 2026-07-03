@@ -20,18 +20,17 @@
             <artifactId>aurora-common</artifactId>
         </dependency>
 
-        <!-- JWT 用于登录鉴权 -->
+        <!-- Sa-Token 鉴权框架（替代 jjwt） -->
         <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-spring-boot3-starter</artifactId>
         </dependency>
+
+        <!-- Lombok（aurora-common 是 optional 不传递，需显式声明） -->
         <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 

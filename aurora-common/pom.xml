@@ -47,6 +47,17 @@
             <groupId>com.github.xiaoymin</groupId>
             <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
         </dependency>
+        <!-- BCrypt 密码加密（Phase 1 登录用；现提前引入以生成 Liquibase seed 中 admin 的密码 hash） -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!-- Sa-Token 鉴权框架（拦截器/异常处理在 common 层） -->
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-spring-boot3-starter</artifactId>
+        </dependency>
 
         <!-- MapStruct 与 Lombok 配合（注解处理器在父 pom 统一配置） -->
         <dependency>

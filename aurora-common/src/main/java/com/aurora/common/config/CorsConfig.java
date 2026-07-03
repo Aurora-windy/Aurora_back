@@ -25,12 +25,12 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
 
-        // 开发期默认允许本地 5173，生产由 yml 白名单控制
+        // 配置了白名单 → 用具体 origin；否则开发期默认用通配符端口模式
+        // （5173 占用时 vite 会顺延到 5174/5175...，硬编码端口会反复踩坑）
         if (allowedOrigins.isEmpty()) {
-            config.addAllowedOrigin("http://localhost:5173");
-            config.addAllowedOrigin("http://127.0.0.1:5173");
+            config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
         } else {
-            allowedOrigins.forEach(config::addAllowedOrigin);
+            config.setAllowedOrigins(allowedOrigins);
         }
 
         config.addAllowedHeader("*");
