@@ -25,4 +25,14 @@ public final class BizConst {
 
     /** 电商订单超时取消时间：15 分钟（秒，Phase 5） */
     public static final long ORDER_TIMEOUT_SECONDS = 15 * 60L;
+
+    /** BCrypt 加密强度（4-31，10 是性能与安全的平衡点） */
+    public static final int BCRYPT_STRENGTH = 10;
+
+    /** 文件上传允许的扩展名白名单（spec §4.2.1）：图片 / 文档 / 代码 */
+    public static final java.util.Set<String> FILE_ALLOWED_EXT = java.util.Set.of(
+            "jpg", "jpeg", "png", "gif", "webp",
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md",
+            "java", "py", "go", "js", "ts", "c", "cpp"
+    );
 }

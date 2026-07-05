@@ -34,6 +34,24 @@ public final class RedisKeyConst {
     /** 考勤打卡锁（Phase 2）: lock:attendance:{empId}:{date} */
     public static final String LOCK_ATTENDANCE = "lock:attendance:";
 
-    /** 排行榜 ZSet（Phase 4）: leaderboard:oj */
+    /** 排行榜 ZSet（Phase 4）: leaderboard:oj（旧版聚合，保留兼容） */
     public static final String LEADERBOARD_OJ = "leaderboard:oj";
+
+    /** OJ 通过数排行榜 ZSet: leaderboard:accept */
+    public static final String LEADERBOARD_ACCEPT = "leaderboard:accept";
+
+    /** OJ 提交数排行榜 ZSet: leaderboard:submit */
+    public static final String LEADERBOARD_SUBMIT = "leaderboard:submit";
+
+    /** 购物车 Hash（Phase 5）: cart:{userId}（field=productId, value=quantity） */
+    public static final String CART = "cart:";
+
+    /** 秒杀限购 SETNX（Phase 5）: seckill:user:{activityId}:{userId} */
+    public static final String SECKILL_USER = "seckill:user:";
+
+    /** AI 会话最近 10 轮上下文（Phase 6）: ai:session:{sessionId} */
+    public static final String AI_SESSION = "ai:session:";
+
+    /** 选课分布式锁（Phase 3）: lock:course:select:{studentId} */
+    public static final String LOCK_SELECT = "lock:course:select:";
 }
