@@ -1,6 +1,7 @@
 package com.aurora.common.exception;
 
 import cn.dev33.satoken.exception.NotLoginException;
+import cn.dev33.satoken.exception.NotPermissionException;
 import cn.dev33.satoken.exception.NotRoleException;
 import cn.dev33.satoken.exception.SaTokenException;
 import com.aurora.common.response.BizCode;
@@ -94,6 +95,15 @@ public class GlobalExceptionHandler {
     public Result<?> handleNotLogin(NotLoginException e, HttpServletRequest req) {
         log.warn("[未登录] {} {} -> {}", req.getMethod(), req.getRequestURI(), e.getMessage());
         return Result.fail(BizCode.UNAUTHORIZED.getCode(), BizCode.UNAUTHORIZED.getMsg());
+    }
+
+    /**
+     * Sa-Token 权限不足
+     */
+    @ExceptionHandler(NotPermissionException.class)
+    public Result<?> handleNotPermission(NotPermissionException e, HttpServletRequest req) {
+        log.warn("[权限不足] {} {} -> 需要 {}", req.getMethod(), req.getRequestURI(), e.getPermission());
+        return Result.fail(BizCode.FORBIDDEN.getCode(), BizCode.FORBIDDEN.getMsg());
     }
 
     /**

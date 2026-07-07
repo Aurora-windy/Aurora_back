@@ -15,6 +15,7 @@ import com.aurora.system.auth.model.resp.CaptchaResp;
 import com.aurora.system.auth.model.resp.LoginResp;
 import com.aurora.system.auth.model.resp.UserInfoResp;
 import com.aurora.system.auth.service.AuthService;
+import com.aurora.system.menu.service.SysMenuService;
 import com.aurora.system.user.entity.SysUserDO;
 import com.aurora.system.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final SysUserMapper userMapper;
     private final RedisUtil redisUtil;
+    private final SysMenuService menuService;
 
     @Value("${aurora.captcha.expire-seconds:120}")
     private long captchaExpireSeconds;
@@ -133,7 +135,7 @@ public class AuthServiceImpl implements AuthService {
                 .nickname(user.getNickname())
                 .avatar(user.getAvatar())
                 .roles(roles)
-                .permissions(List.of())  // Phase 1 后续 RBAC 实装后填充
+                .permissions(menuService.currentUserPermissions(userId))
                 .build();
     }
 }

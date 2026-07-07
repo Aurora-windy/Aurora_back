@@ -34,6 +34,6 @@ public class UserInfoResp implements Serializable {
     @Schema(description = "角色编码列表（如 admin）")
     private List<String> roles;
 
-    @Schema(description = "权限编码列表（Phase 1 后续 RBAC 实装后填充，本次为空数组占位）")
+    @Schema(description = "权限编码列表")
     private List<String> permissions;
 }
