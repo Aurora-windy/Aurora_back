@@ -3,16 +3,23 @@ package com.aurora.edu.student.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.aurora.common.constant.RoleCodeConst;
 import com.aurora.common.exception.BizException;
 import com.aurora.common.response.BizCode;
 import com.aurora.common.response.PageResult;
+import com.aurora.common.util.SecurityUtil;
 import com.aurora.edu.student.entity.EduStudentDO;
 import com.aurora.edu.student.mapper.EduStudentMapper;
+import com.aurora.edu.student.model.req.StudentAccountOptionReq;
 import com.aurora.edu.student.model.req.StudentAddReq;
 import com.aurora.edu.student.model.req.StudentPageReq;
 import com.aurora.edu.student.model.req.StudentUpdateReq;
+import com.aurora.edu.student.model.resp.StudentAccountOptionResp;
+import com.aurora.edu.student.model.resp.StudentProfileStatusResp;
 import com.aurora.edu.student.model.resp.StudentResp;
 import com.aurora.edu.student.service.EduStudentService;
+import com.aurora.system.user.entity.SysUserDO;
+import com.aurora.system.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -24,6 +31,7 @@ import java.util.List;
 public class EduStudentServiceImpl implements EduStudentService {
 
     private final EduStudentMapper studentMapper;
+    private final SysUserMapper userMapper;
 
     @Override
     public PageResult<StudentResp> page(StudentPageReq req) {
@@ -45,6 +53,7 @@ public class EduStudentServiceImpl implements EduStudentService {
     @Override
     public Long add(StudentAddReq req) {
         ensureStudentNoUnique(req.getStudentNo(), null);
+        validateUserBinding(req.getUserId(), null);
         EduStudentDO student = new EduStudentDO();
         student.setUserId(req.getUserId());
         student.setStudentNo(req.getStudentNo());
@@ -62,6 +71,7 @@ public class EduStudentServiceImpl implements EduStudentService {
     public void update(StudentUpdateReq req) {
         requireStudent(req.getId());
         ensureStudentNoUnique(req.getStudentNo(), req.getId());
+        validateUserBinding(req.getUserId(), req.getId());
         EduStudentDO student = new EduStudentDO();
         student.setId(req.getId());
         student.setUserId(req.getUserId());
@@ -81,6 +91,40 @@ public class EduStudentServiceImpl implements EduStudentService {
         studentMapper.deleteById(id);
     }
 
+    @Override
+    public List<StudentAccountOptionResp> listBindableUsers(StudentAccountOptionReq req) {
+        return studentMapper.selectBindableUsers(
+                req.normalizedKeyword(),
+                req.getCurrentStudentId(),
+                req.normalizedLimit());
+    }
+
+    @Override
+    public StudentProfileStatusResp currentProfileStatus() {
+        Long userId = SecurityUtil.requireUserId();
+        EduStudentDO student = studentMapper.selectByUserId(userId);
+        if (student == null) {
+            return StudentProfileStatusResp.builder()
+                    .bound(false)
+                    .enabled(false)
+                    .message(BizCode.STUDENT_PROFILE_NOT_BOUND.getMsg())
+                    .build();
+        }
+        if (student.getStatus() == null || student.getStatus() != 1) {
+            return StudentProfileStatusResp.builder()
+                    .bound(true)
+                    .enabled(false)
+                    .studentId(student.getId())
+                    .message(BizCode.STUDENT_PROFILE_DISABLED.getMsg())
+                    .build();
+        }
+        return StudentProfileStatusResp.builder()
+                .bound(true)
+                .enabled(true)
+                .studentId(student.getId())
+                .build();
+    }
+
     private EduStudentDO requireStudent(Long id) {
         EduStudentDO student = studentMapper.selectById(id);
         if (student == null) {
@@ -95,6 +139,28 @@ public class EduStudentServiceImpl implements EduStudentService {
                 .ne(excludeId != null, EduStudentDO::getId, excludeId);
         if (studentMapper.selectCount(wrapper) > 0) {
             throw new BizException(BizCode.STUDENT_NO_DUPLICATED);
+        }
+    }
+
+    private void validateUserBinding(Long userId, Long excludeStudentId) {
+        if (userId == null) {
+            return;
+        }
+        SysUserDO user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(BizCode.STUDENT_USER_NOT_FOUND);
+        }
+        if (user.getStatus() == null || user.getStatus() != 1) {
+            throw new BizException(BizCode.STUDENT_USER_DISABLED);
+        }
+        if (!userMapper.selectRoleCodesByUserId(userId).contains(RoleCodeConst.STUDENT)) {
+            throw new BizException(BizCode.STUDENT_USER_ROLE_INVALID);
+        }
+        LambdaQueryWrapper<EduStudentDO> wrapper = Wrappers.<EduStudentDO>lambdaQuery()
+                .eq(EduStudentDO::getUserId, userId)
+                .ne(excludeStudentId != null, EduStudentDO::getId, excludeStudentId);
+        if (studentMapper.selectCount(wrapper) > 0) {
+            throw new BizException(BizCode.STUDENT_USER_ALREADY_BOUND);
         }
     }
 

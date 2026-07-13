@@ -9,18 +9,27 @@ spring:
       # 需要的 <String,Object> 泛型不匹配。当 aurora-mall 真正需要 Redisson 时，移除此排除即可。
       - org.redisson.spring.starter.RedissonAutoConfigurationV2
   datasource:
-    url: jdbc:mysql://localhost:3306/aurora?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=UTC
-    username: ${DB_USER:admin}
+
+    url: jdbc:mysql://localhost:3306/aurora?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
     password: ${DB_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      database: 0
+      database: ${REDIS_DATABASE:6}
   liquibase:
     enabled: true
     change-log: classpath:/db/changelog/db.changelog-master.yaml
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
 
 server:
   port: 1207
@@ -66,4 +75,6 @@ sa-token:
 aurora:
   captcha:
     expire-seconds: 120             # 验证码有效期（秒）
-    key-prefix: "captcha:"          # Redis 存验证码的 key 前缀
+    key-prefix: "aurora:captcha:"          # Redis 存验证码的 key 前缀
+  jackson:
+    big-number-mode: string       # flexible=超出JS安全范围才转String | string=所有Long一律转String

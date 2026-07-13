@@ -1,5 +1,7 @@
 package com.aurora.edu.student.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.aurora.common.base.BaseDO;
 import lombok.Data;
@@ -13,6 +15,7 @@ import lombok.EqualsAndHashCode;
 @TableName("edu_student")
 public class EduStudentDO extends BaseDO {
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long userId;
     private String studentNo;
     private String name;

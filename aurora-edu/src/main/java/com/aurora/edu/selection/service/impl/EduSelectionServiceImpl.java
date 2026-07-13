@@ -92,18 +92,23 @@ public class EduSelectionServiceImpl implements EduSelectionService {
         if (dropped != 1) {
             throw new BizException(BizCode.DATA_NOT_FOUND);
         }
-        courseMapper.update(null, Wrappers.<EduCourseDO>lambdaUpdate()
+        int decremented = courseMapper.update(null, Wrappers.<EduCourseDO>lambdaUpdate()
                 .setDecrBy(EduCourseDO::getSelectedCount, 1)
                 .eq(EduCourseDO::getId, courseId)
                 .gt(EduCourseDO::getSelectedCount, 0));
+        if (decremented != 1) {
+            throw new BizException(BizCode.OPERATION_FAIL);
+        }
     }
 
     private EduStudentDO requireCurrentStudent() {
         Long userId = SecurityUtil.requireUserId();
-        EduStudentDO student = studentMapper.selectList(Wrappers.<EduStudentDO>lambdaQuery()
-                .eq(EduStudentDO::getUserId, userId)).stream().findFirst().orElse(null);
+        EduStudentDO student = studentMapper.selectByUserId(userId);
         if (student == null) {
-            throw new BizException(BizCode.DATA_NOT_FOUND);
+            throw new BizException(BizCode.STUDENT_PROFILE_NOT_BOUND);
+        }
+        if (student.getStatus() == null || student.getStatus() != 1) {
+            throw new BizException(BizCode.STUDENT_PROFILE_DISABLED);
         }
         return student;
     }

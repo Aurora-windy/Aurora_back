@@ -4,9 +4,12 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.aurora.common.constant.PermCodeConst;
 import com.aurora.common.response.PageResult;
 import com.aurora.common.response.Result;
+import com.aurora.edu.student.model.req.StudentAccountOptionReq;
 import com.aurora.edu.student.model.req.StudentAddReq;
 import com.aurora.edu.student.model.req.StudentPageReq;
 import com.aurora.edu.student.model.req.StudentUpdateReq;
+import com.aurora.edu.student.model.resp.StudentAccountOptionResp;
+import com.aurora.edu.student.model.resp.StudentProfileStatusResp;
 import com.aurora.edu.student.model.resp.StudentResp;
 import com.aurora.edu.student.service.EduStudentService;
 import jakarta.validation.Valid;
@@ -20,6 +23,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/edu/students")
@@ -29,6 +34,18 @@ public class EduStudentController {
     @SaCheckPermission(PermCodeConst.Edu.Student.LIST)
     @GetMapping
     public Result<PageResult<StudentResp>> page(StudentPageReq req) { return Result.ok(studentService.page(req)); }
+
+    @SaCheckPermission(PermCodeConst.Edu.Student.LIST)
+    @GetMapping("/bindable-users")
+    public Result<List<StudentAccountOptionResp>> bindableUsers(StudentAccountOptionReq req) {
+        return Result.ok(studentService.listBindableUsers(req));
+    }
+
+    @SaCheckPermission(PermCodeConst.Edu.SELECTION_SELECT)
+    @GetMapping("/me/profile-status")
+    public Result<StudentProfileStatusResp> currentProfileStatus() {
+        return Result.ok(studentService.currentProfileStatus());
+    }
 
     @SaCheckPermission(PermCodeConst.Edu.Student.LIST)
     @GetMapping("/{id}")

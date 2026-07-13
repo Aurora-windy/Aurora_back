@@ -4,7 +4,7 @@ package com.aurora.common.constant;
  * 角色编码常量
  *
  * <p>spec: docs/specs/2026-07-05-global-variables.md §4.2.3</p>
- * <p>sys_role.code 字段值来源（Liquibase seed 5 个角色）。</p>
+ * <p>sys_role.code 字段值来源（Liquibase seed 6 个角色）。</p>
  *
  * @see BizConst#ROLE_ADMIN 与本类 {@link #ADMIN} 等价，保留 BizConst.ROLE_ADMIN 是为兼容已有代码
  */
@@ -18,6 +18,9 @@ public final class RoleCodeConst {
 
     /** 人事管理员：本部门及下级数据权限（data_scope=2） */
     public static final String HR_ADMIN = "hr_admin";
+
+    /** 教务管理员：管理 EDU 学生、教师和课程数据。 */
+    public static final String EDU_ADMIN = "edu_admin";
 
     /** 教师：本人授课数据权限（data_scope=3） */
     public static final String EDU_TEACHER = "edu_teacher";

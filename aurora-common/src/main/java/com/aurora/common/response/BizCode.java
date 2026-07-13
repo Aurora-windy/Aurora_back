@@ -65,6 +65,12 @@ public enum BizCode {
     NOT_IN_SELECTION_PERIOD (30005, "非选课时间段"),
     SCORE_OUT_OF_RANGE      (30006, "成绩必须在0-100之间"),
     SCORE_NOT_YOURS         (30007, "只能录入本人课程的成绩"),
+    STUDENT_PROFILE_NOT_BOUND (30008, "当前账号未绑定学生档案，请联系教务管理员"),
+    STUDENT_USER_NOT_FOUND     (30009, "绑定的用户不存在或已删除"),
+    STUDENT_USER_DISABLED      (30010, "绑定的用户账号已禁用"),
+    STUDENT_USER_ROLE_INVALID  (30011, "只能绑定拥有 student 角色的用户"),
+    STUDENT_USER_ALREADY_BOUND (30012, "该用户已绑定其他学生档案"),
+    STUDENT_PROFILE_DISABLED   (30013, "当前学生档案不是在读状态"),
 
     // === 4xxxx OJ ===
     PROBLEM_NOT_FOUND       (40001, "题目不存在"),
