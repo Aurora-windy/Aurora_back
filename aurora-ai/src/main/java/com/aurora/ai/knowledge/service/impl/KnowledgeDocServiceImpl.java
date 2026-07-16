@@ -163,7 +163,7 @@ public class KnowledgeDocServiceImpl implements KnowledgeDocService {
         try {
             return objectMapper.writeValueAsString(embedding);
         } catch (JsonProcessingException ex) {
-            throw new BizException(BizCode.DOC_PROCESSING_FAILED, "Failed to serialize embedding vector");
+            throw new BizException(BizCode.DOC_PROCESSING_FAILED, "序列化向量数据失败");
         }
     }
 

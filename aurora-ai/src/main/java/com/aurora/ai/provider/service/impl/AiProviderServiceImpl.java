@@ -92,7 +92,7 @@ public class AiProviderServiceImpl implements AiProviderService {
             openAiClientFactory.testChatCompletion(provider);
             return ProviderTestResp.builder()
                     .success(Boolean.TRUE)
-                    .message("Provider connection test succeeded")
+                    .message("模型连通性测试成功")
                     .durationMs(Duration.between(startedAt, Instant.now()).toMillis())
                     .build();
         } catch (Exception ex) {

@@ -20,6 +20,6 @@ public class EduStudentSearchTool implements AiToolHandler {
         req.setStudentNo(ParamReader.string(request.getParams(), "studentNo"));
         req.setStatus(ParamReader.intValue(request.getParams(), "status"));
         Object result = facade.searchStudents(req);
-        return AiToolResult.ok(result, "Student search completed");
+        return AiToolResult.ok(result, "学生查询已完成");
     }
 }

@@ -15,6 +15,6 @@ public class EduSelectionByStudentTool implements AiToolHandler {
     @Override
     public AiToolResult execute(AiToolRequest request) {
         Long studentId = ParamReader.longValue(request.getParams(), "studentId");
-        return AiToolResult.ok(facade.listSelectionsByStudent(studentId), "Student selections loaded");
+        return AiToolResult.ok(facade.listSelectionsByStudent(studentId), "学生选课记录已加载");
     }
 }

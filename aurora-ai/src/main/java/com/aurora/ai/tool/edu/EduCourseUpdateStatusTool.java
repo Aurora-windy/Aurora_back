@@ -15,6 +15,6 @@ public class EduCourseUpdateStatusTool implements AiToolHandler {
     @Override
     public AiToolResult execute(AiToolRequest request) {
         facade.updateStatus(ParamReader.longValue(request.getParams(), "courseId"), ParamReader.intValue(request.getParams(), "status"));
-        return AiToolResult.ok(null, "Course status updated");
+        return AiToolResult.ok(null, "课程状态已更新");
     }
 }

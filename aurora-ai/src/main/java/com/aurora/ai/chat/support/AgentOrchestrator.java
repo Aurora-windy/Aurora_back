@@ -32,7 +32,7 @@ public class AgentOrchestrator {
         if (pendingAction != null) {
             return AgentDraft.builder()
                     .systemPrompt(systemPrompt)
-                    .assistantContent("Mutation request detected. A pending confirmation plan has been created. EDU data will not change before confirmation.")
+                    .assistantContent("已识别到 EDU 数据修改请求，并生成待确认操作计划。确认前不会变更任何 EDU 数据。")
                     .citations(citations)
                     .pendingAction(pendingAction)
                     .build();
@@ -49,7 +49,7 @@ public class AgentOrchestrator {
         }
         return AgentDraft.builder()
                 .systemPrompt(systemPrompt)
-                .assistantContent("I prepared an answer from the current knowledge base. You can also query EDU students, courses, selections, or request a controlled EDU mutation.")
+                .assistantContent("已根据当前知识库准备回复。你也可以继续查询 EDU 学生、课程、选课记录，或发起受控 EDU 修改请求。")
                 .citations(citations)
                 .build();
     }
@@ -64,9 +64,9 @@ public class AgentOrchestrator {
 
     private String toQueryAssistantContent(String toolName, AiToolResult result) {
         if (!Boolean.TRUE.equals(result.getSuccess())) {
-            return "Tool call failed: " + result.getErrorMessage();
+            return "工具调用失败：" + result.getErrorMessage();
         }
-        return "Executed query tool " + toolName + ". Result summary: " + summarize(result.getData());
+        return "已执行查询工具 " + toolName + "，结果摘要：" + summarize(result.getData());
     }
 
     private String summarize(Object data) {

@@ -87,7 +87,7 @@ public class KnowledgeRetrievalServiceImpl implements KnowledgeRetrievalService 
         try {
             return objectMapper.readValue(json, new TypeReference<>() {});
         } catch (Exception ex) {
-            throw new BizException(BizCode.DOC_PROCESSING_FAILED, "Failed to parse stored embedding vector");
+            throw new BizException(BizCode.DOC_PROCESSING_FAILED, "解析已存储向量数据失败");
         }
     }
 

@@ -3,6 +3,7 @@ package com.aurora.ai.provider.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.aurora.ai.provider.entity.AiEmbeddingConfigDO;
 import com.aurora.ai.provider.mapper.AiEmbeddingConfigMapper;
+import com.aurora.ai.provider.client.OpenAiClientFactory;
 import com.aurora.ai.provider.model.req.EmbeddingConfigSaveReq;
 import com.aurora.ai.provider.model.resp.EmbeddingConfigResp;
 import com.aurora.ai.provider.model.resp.ProviderTestResp;
@@ -22,6 +23,7 @@ import java.time.Instant;
 public class AiEmbeddingConfigServiceImpl implements AiEmbeddingConfigService {
 
     private final AiEmbeddingConfigMapper embeddingConfigMapper;
+    private final OpenAiClientFactory openAiClientFactory;
 
     @Override
     public EmbeddingConfigResp get() {
@@ -55,9 +57,16 @@ public class AiEmbeddingConfigServiceImpl implements AiEmbeddingConfigService {
         Instant startedAt = Instant.now();
         try {
             validate(req);
+            AiEmbeddingConfigDO config = new AiEmbeddingConfigDO();
+            config.setBaseUrl(req.getBaseUrl());
+            config.setApiKeyCipher(req.getApiKey());
+            config.setModel(req.getModel());
+            config.setDimension(req.getDimension());
+            config.setTimeoutSeconds(req.getTimeoutSeconds());
+            openAiClientFactory.testEmbedding(config);
             return ProviderTestResp.builder()
-                    .success(Boolean.FALSE)
-                    .message("Embedding connection test is not wired until embedding client implementation")
+                    .success(Boolean.TRUE)
+                    .message("Embedding 连通性测试成功")
                     .durationMs(Duration.between(startedAt, Instant.now()).toMillis())
                     .build();
         } catch (Exception ex) {

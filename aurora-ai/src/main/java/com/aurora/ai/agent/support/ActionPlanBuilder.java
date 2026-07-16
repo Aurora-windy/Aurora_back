@@ -45,8 +45,8 @@ public class ActionPlanBuilder {
         }
         AiAgentActionDO action = baseAction(sessionId, userId);
         action.setToolName("pending.edu.tool");
-        action.setPlanSummary("Detected a possible EDU mutation request, but no supported deterministic tool mapping was found. Supported examples: courseId 123 capacity 60; courseId 123 status 1; studentId 1 userId 2 bind; studentId 1 courseId 2 drop.");
-        action.setRiskSummary("Unsupported mutation intent is not executable. No EDU data will be changed unless a registered tool and validated parameters are available.");
+        action.setPlanSummary("检测到可能的 EDU 修改请求，但暂未匹配到受支持的确定性工具。可用示例：courseId 123 capacity 60；courseId 123 status 1；studentId 1 userId 2 bind；studentId 1 courseId 2 drop。");
+        action.setRiskSummary("当前修改意图暂不支持执行。只有匹配到已注册工具且参数校验通过后，才会变更 EDU 数据。");
         action.setParamsJson(toJson(Map.of("rawUserRequest", userContent)));
         return action;
     }
@@ -93,8 +93,8 @@ public class ActionPlanBuilder {
         params.put("courseId", courseId);
         params.put("capacity", capacity);
         return action(sessionId, userId, "edu.course.updateCapacity", params,
-                "Plan: update course " + courseId + " capacity to " + capacity + ".",
-                "Risk: capacity cannot be lower than selected count; RBAC and EDU facade validation apply.");
+                "计划：将课程 " + courseId + " 的容量调整为 " + capacity + "。",
+                "风险：容量不能低于已选人数；执行时会复用 RBAC 权限和 EDU 服务校验。");
     }
 
     private AiAgentActionDO tryBuildCourseStatusAction(Long sessionId, Long userId, String userContent) {
@@ -112,8 +112,8 @@ public class ActionPlanBuilder {
         params.put("courseId", courseId);
         params.put("status", status);
         return action(sessionId, userId, "edu.course.updateStatus", params,
-                "Plan: update course " + courseId + " status to " + status + ".",
-                "Risk: course status must be 0 or 1; RBAC and EDU facade validation apply.");
+                "计划：将课程 " + courseId + " 的状态调整为 " + status + "。",
+                "风险：课程状态必须为 0 或 1；执行时会复用 RBAC 权限和 EDU 服务校验。");
     }
 
     private AiAgentActionDO tryBuildStudentBindAction(Long sessionId, Long userId, String userContent) {
@@ -131,8 +131,8 @@ public class ActionPlanBuilder {
         params.put("studentId", studentId);
         params.put("userId", targetUserId);
         return action(sessionId, userId, "edu.student.bindUser", params,
-                "Plan: bind student " + studentId + " to user " + targetUserId + ".",
-                "Risk: target user must exist, be enabled, have student role, and not be bound to another profile.");
+                "计划：将学生 " + studentId + " 绑定到用户 " + targetUserId + "。",
+                "风险：目标用户必须存在、已启用、具备学生角色，且未绑定其他学生档案。");
     }
 
     private AiAgentActionDO tryBuildStudentUnbindAction(Long sessionId, Long userId, String userContent) {
@@ -148,8 +148,8 @@ public class ActionPlanBuilder {
         Map<String, Object> params = orderedParams(userContent);
         params.put("studentId", studentId);
         return action(sessionId, userId, "edu.student.unbindUser", params,
-                "Plan: unbind user from student " + studentId + ".",
-                "Risk: profile will no longer be attached to a login account after confirmation.");
+                "计划：解除学生 " + studentId + " 的用户绑定。",
+                "风险：确认后该学生档案将不再关联登录账号。");
     }
 
     private AiAgentActionDO tryBuildSelectionDropAction(Long sessionId, Long userId, String userContent) {
@@ -167,8 +167,8 @@ public class ActionPlanBuilder {
         params.put("studentId", studentId);
         params.put("courseId", courseId);
         return action(sessionId, userId, "edu.selection.dropForStudent", params,
-                "Plan: drop course " + courseId + " for student " + studentId + ".",
-                "Risk: selection will be marked dropped and course selected count will decrease through EDU facade.");
+                "计划：为学生 " + studentId + " 退选课程 " + courseId + "。",
+                "风险：选课记录会标记为已退课，课程已选人数会通过 EDU 服务同步减少。");
     }
 
     private AiAgentActionDO action(Long sessionId, Long userId, String toolName, Map<String, Object> params, String plan, String risk) {

@@ -18,6 +18,6 @@ public class EduStudentBindableUsersTool implements AiToolHandler {
         StudentAccountOptionReq req = new StudentAccountOptionReq();
         req.setKeyword(ParamReader.string(request.getParams(), "keyword"));
         req.setCurrentStudentId(ParamReader.longValue(request.getParams(), "currentStudentId"));
-        return AiToolResult.ok(facade.listBindableUsers(req), "Bindable users search completed");
+        return AiToolResult.ok(facade.listBindableUsers(req), "可绑定用户查询已完成");
     }
 }

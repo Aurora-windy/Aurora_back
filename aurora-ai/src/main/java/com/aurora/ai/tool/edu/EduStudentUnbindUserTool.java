@@ -15,6 +15,6 @@ public class EduStudentUnbindUserTool implements AiToolHandler {
     @Override
     public AiToolResult execute(AiToolRequest request) {
         facade.unbindStudentUser(ParamReader.longValue(request.getParams(), "studentId"));
-        return AiToolResult.ok(null, "Student user unbound");
+        return AiToolResult.ok(null, "学生用户绑定已解除");
     }
 }

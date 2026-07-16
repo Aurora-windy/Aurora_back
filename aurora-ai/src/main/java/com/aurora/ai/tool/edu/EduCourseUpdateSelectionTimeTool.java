@@ -15,6 +15,6 @@ public class EduCourseUpdateSelectionTimeTool implements AiToolHandler {
     @Override
     public AiToolResult execute(AiToolRequest request) {
         facade.updateSelectionTime(ParamReader.longValue(request.getParams(), "courseId"), ParamReader.dateTime(request.getParams(), "startTime"), ParamReader.dateTime(request.getParams(), "endTime"));
-        return AiToolResult.ok(null, "Course selection time updated");
+        return AiToolResult.ok(null, "课程选课时间已更新");
     }
 }

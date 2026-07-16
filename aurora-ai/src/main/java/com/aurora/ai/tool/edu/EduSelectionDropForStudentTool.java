@@ -15,6 +15,6 @@ public class EduSelectionDropForStudentTool implements AiToolHandler {
     @Override
     public AiToolResult execute(AiToolRequest request) {
         facade.dropCourseForStudent(ParamReader.longValue(request.getParams(), "studentId"), ParamReader.longValue(request.getParams(), "courseId"));
-        return AiToolResult.ok(null, "Student course dropped");
+        return AiToolResult.ok(null, "学生课程已退选");
     }
 }

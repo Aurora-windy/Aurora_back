@@ -36,7 +36,7 @@ public class OpenAiEmbeddingClient implements EmbeddingClient {
                 .last("LIMIT 1"));
         if (config == null || !StringUtils.hasText(config.getBaseUrl()) || !StringUtils.hasText(config.getModel())
                 || config.getDimension() == null || config.getDimension() < 1) {
-            throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding config is required before publishing knowledge documents");
+            throw new BizException(BizCode.LLM_UNAVAILABLE, "发布知识文档前必须先配置 Embedding");
         }
         return config;
     }
@@ -72,18 +72,18 @@ public class OpenAiEmbeddingClient implements EmbeddingClient {
         try {
             JsonNode embeddingNode = objectMapper.readTree(response).path("data").path(0).path("embedding");
             if (!embeddingNode.isArray()) {
-                throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding response does not contain a vector");
+                throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding 响应中没有向量数据");
             }
             List<Double> vector = new ArrayList<>();
             embeddingNode.forEach(node -> vector.add(node.asDouble()));
             if (expectedDimension != null && expectedDimension > 0 && vector.size() != expectedDimension) {
-                throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding dimension mismatch");
+                throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding 向量维度不匹配");
             }
             return vector;
         } catch (BizException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new BizException(BizCode.LLM_UNAVAILABLE, "Failed to parse embedding response");
+            throw new BizException(BizCode.LLM_UNAVAILABLE, "解析 Embedding 响应失败");
         }
     }
 

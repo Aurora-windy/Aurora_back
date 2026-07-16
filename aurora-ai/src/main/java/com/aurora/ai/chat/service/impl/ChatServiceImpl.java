@@ -1,5 +1,8 @@
 package com.aurora.ai.chat.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.aurora.ai.agent.entity.AiAgentActionDO;
 import com.aurora.ai.agent.mapper.AiAgentActionMapper;
 import com.aurora.ai.agent.support.ActionPlanBuilder;
@@ -7,6 +10,7 @@ import com.aurora.ai.chat.entity.AiChatMessageDO;
 import com.aurora.ai.chat.entity.AiChatSessionDO;
 import com.aurora.ai.chat.mapper.AiChatMessageMapper;
 import com.aurora.ai.chat.mapper.AiChatSessionMapper;
+import com.aurora.ai.chat.model.req.ChatSessionPageReq;
 import com.aurora.ai.chat.model.req.CreateSessionReq;
 import com.aurora.ai.chat.model.req.SendMessageReq;
 import com.aurora.ai.chat.model.resp.ChatMessageResp;
@@ -19,8 +23,8 @@ import com.aurora.ai.provider.entity.AiModelProviderDO;
 import com.aurora.ai.provider.mapper.AiModelProviderMapper;
 import com.aurora.common.exception.BizException;
 import com.aurora.common.response.BizCode;
+import com.aurora.common.response.PageResult;
 import com.aurora.common.util.SecurityUtil;
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -49,7 +53,7 @@ public class ChatServiceImpl implements ChatService {
         AiModelProviderDO provider = req.getProviderId() == null ? null : requireEnabledProvider(req.getProviderId());
         AiChatSessionDO session = new AiChatSessionDO();
         session.setUserId(userId);
-        session.setTitle(StringUtils.hasText(req.getTitle()) ? req.getTitle() : "New Chat");
+        session.setTitle(StringUtils.hasText(req.getTitle()) ? req.getTitle() : "新对话");
         session.setProviderId(provider == null ? null : provider.getId());
         session.setModel(provider == null ? null : provider.getModel());
         session.setStatus(ChatStatus.ACTIVE);
@@ -69,8 +73,35 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    public PageResult<ChatSessionResp> pageSessions(ChatSessionPageReq req) {
+        LambdaQueryWrapper<AiChatSessionDO> wrapper = Wrappers.<AiChatSessionDO>lambdaQuery()
+                .eq(req.getUserId() != null, AiChatSessionDO::getUserId, req.getUserId())
+                .eq(req.getProviderId() != null, AiChatSessionDO::getProviderId, req.getProviderId())
+                .like(StringUtils.hasText(req.getTitle()), AiChatSessionDO::getTitle, req.getTitle())
+                .like(StringUtils.hasText(req.getModel()), AiChatSessionDO::getModel, req.getModel())
+                .eq(StringUtils.hasText(req.getStatus()), AiChatSessionDO::getStatus, req.getStatus())
+                .orderByDesc(AiChatSessionDO::getLastMessageAt)
+                .orderByDesc(AiChatSessionDO::getCreateTime);
+        Page<AiChatSessionDO> page = sessionMapper.selectPage(new Page<>(req.normalizedPageNum(), req.normalizedPageSize()), wrapper);
+        return new PageResult<>(page.getRecords().stream().map(this::toSessionResp).toList(), page.getTotal());
+    }
+
+    @Override
     public List<ChatMessageResp> listMessages(Long sessionId) {
         requireOwnSession(sessionId);
+        return messageMapper.selectList(Wrappers.<AiChatMessageDO>lambdaQuery()
+                        .eq(AiChatMessageDO::getSessionId, sessionId)
+                        .orderByAsc(AiChatMessageDO::getCreatedAt)
+                        .orderByAsc(AiChatMessageDO::getCreateTime))
+                .stream().map(this::toMessageResp).toList();
+    }
+
+    @Override
+    public List<ChatMessageResp> listSessionMessagesForAdmin(Long sessionId) {
+        AiChatSessionDO session = sessionMapper.selectById(sessionId);
+        if (session == null) {
+            throw new BizException(BizCode.DATA_NOT_FOUND, "会话不存在");
+        }
         return messageMapper.selectList(Wrappers.<AiChatMessageDO>lambdaQuery()
                         .eq(AiChatMessageDO::getSessionId, sessionId)
                         .orderByAsc(AiChatMessageDO::getCreatedAt)
@@ -114,10 +145,10 @@ public class ChatServiceImpl implements ChatService {
         Long userId = SecurityUtil.requireUserId();
         AiChatSessionDO session = sessionMapper.selectById(sessionId);
         if (session == null) {
-            throw new BizException(BizCode.DATA_NOT_FOUND, "Chat session does not exist");
+            throw new BizException(BizCode.DATA_NOT_FOUND, "会话不存在");
         }
         if (!userId.equals(session.getUserId())) {
-            throw new BizException(BizCode.FORBIDDEN, "Chat session does not belong to current user");
+            throw new BizException(BizCode.FORBIDDEN, "该会话不属于当前用户");
         }
         return session;
     }

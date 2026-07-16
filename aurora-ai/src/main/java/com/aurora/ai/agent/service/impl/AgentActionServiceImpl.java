@@ -50,7 +50,7 @@ public class AgentActionServiceImpl implements AgentActionService {
     public ActionResultResp reject(Long actionId) {
         AiAgentActionDO action = requireOwnPendingAction(actionId);
         action.setStatus(AgentActionStatus.REJECTED);
-        action.setResultSummary("User rejected the pending action. No EDU data was changed.");
+        action.setResultSummary("用户已拒绝待确认操作，EDU 数据未发生变更。");
         actionMapper.updateById(action);
         return toResult(action);
     }
@@ -59,13 +59,13 @@ public class AgentActionServiceImpl implements AgentActionService {
         Long userId = SecurityUtil.requireUserId();
         AiAgentActionDO action = actionMapper.selectById(actionId);
         if (action == null) {
-            throw new BizException(BizCode.DATA_NOT_FOUND, "Agent action does not exist");
+            throw new BizException(BizCode.DATA_NOT_FOUND, "Agent 操作不存在");
         }
         if (!userId.equals(action.getUserId())) {
-            throw new BizException(BizCode.FORBIDDEN, "Agent action does not belong to current user");
+            throw new BizException(BizCode.FORBIDDEN, "该 Agent 操作不属于当前用户");
         }
         if (!AgentActionStatus.PENDING_CONFIRM.equals(action.getStatus())) {
-            throw new BizException(BizCode.OPERATION_FAIL, "Only pending actions can be confirmed or rejected");
+            throw new BizException(BizCode.OPERATION_FAIL, "只有待确认操作可以确认或拒绝");
         }
         return action;
     }
@@ -77,7 +77,7 @@ public class AgentActionServiceImpl implements AgentActionService {
             }
             return objectMapper.readValue(paramsJson, new TypeReference<>() {});
         } catch (Exception ex) {
-            throw new BizException(BizCode.PARAM_ERROR, "Invalid action params");
+            throw new BizException(BizCode.PARAM_ERROR, "操作参数格式不正确");
         }
     }
 

@@ -15,6 +15,6 @@ public class EduCourseUpdateCapacityTool implements AiToolHandler {
     @Override
     public AiToolResult execute(AiToolRequest request) {
         facade.updateCapacity(ParamReader.longValue(request.getParams(), "courseId"), ParamReader.intValue(request.getParams(), "capacity"));
-        return AiToolResult.ok(null, "Course capacity updated");
+        return AiToolResult.ok(null, "课程容量已更新");
     }
 }

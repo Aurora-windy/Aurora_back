@@ -15,6 +15,6 @@ public class EduStudentBindUserTool implements AiToolHandler {
     @Override
     public AiToolResult execute(AiToolRequest request) {
         facade.bindStudentUser(ParamReader.longValue(request.getParams(), "studentId"), ParamReader.longValue(request.getParams(), "userId"));
-        return AiToolResult.ok(null, "Student user bound");
+        return AiToolResult.ok(null, "学生用户已绑定");
     }
 }

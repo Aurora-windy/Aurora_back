@@ -21,6 +21,6 @@ public class EduCourseSearchTool implements AiToolHandler {
         req.setTeacherId(ParamReader.longValue(request.getParams(), "teacherId"));
         req.setCategory(ParamReader.intValue(request.getParams(), "category"));
         req.setStatus(ParamReader.intValue(request.getParams(), "status"));
-        return AiToolResult.ok(facade.searchCourses(req), "Course search completed");
+        return AiToolResult.ok(facade.searchCourses(req), "课程查询已完成");
     }
 }
