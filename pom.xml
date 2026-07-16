@@ -16,8 +16,7 @@
     <version>1.0.0</version>
     <packaging>pom</packaging>
     <name>aurora-parent</name>
-    <description>AURORA 综合一体化后台平台 - 父模块</description>
-
+    <description>AURORA integrated backend platform parent module</description>
     <modules>
         <module>aurora-common</module>
         <module>aurora-system</module>
@@ -35,7 +34,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <!-- 第三方依赖版本 -->
+        <!-- 绗笁鏂逛緷璧栫増鏈?-->
         <mybatis-plus.version>3.5.10</mybatis-plus.version>
         <mybatis-plus-jsqlparser.version>3.5.10</mybatis-plus-jsqlparser.version>
         <hutool.version>5.8.43</hutool.version>
@@ -49,12 +48,20 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <testcontainers.version>1.20.4</testcontainers.version>
-        <!-- spring-ai 保留到 Phase 6 再引入（M4 版本可能与 SpringBoot 3.3.6 不兼容） -->
+        <spring-ai.version>1.0.9</spring-ai.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- 内部模块互相引用 -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- 鍐呴儴妯″潡浜掔浉寮曠敤 -->
             <dependency>
                 <groupId>com.aurora</groupId>
                 <artifactId>aurora-common</artifactId>
@@ -91,7 +98,7 @@
                 <version>${project.version}</version>
             </dependency>
 
-            <!-- 第三方锁版本 -->
+            <!-- 绗笁鏂归攣鐗堟湰 -->
             <dependency>
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
@@ -132,7 +139,7 @@
                 <scope>runtime</scope>
             </dependency>
 
-            <!-- Sa-Token 鉴权框架（Spring Boot 3 starter） -->
+            <!-- Sa-Token 閴存潈妗嗘灦锛圫pring Boot 3 starter锛?-->
             <dependency>
                 <groupId>cn.dev33</groupId>
                 <artifactId>sa-token-spring-boot3-starter</artifactId>
@@ -144,28 +151,28 @@
                 <version>${sa-token.version}</version>
             </dependency>
 
-            <!-- Easy-Captcha 图形验证码 -->
+            <!-- Easy-Captcha 鍥惧舰楠岃瘉鐮?-->
             <dependency>
                 <groupId>com.github.whvcse</groupId>
                 <artifactId>easy-captcha</artifactId>
                 <version>${easy-captcha.version}</version>
             </dependency>
 
-            <!-- Redisson 分布式锁（电商模块用） -->
+            <!-- Redisson 鍒嗗竷寮忛攣锛堢數鍟嗘ā鍧楃敤锛?-->
             <dependency>
                 <groupId>org.redisson</groupId>
                 <artifactId>redisson-spring-boot-starter</artifactId>
                 <version>${redisson.version}</version>
             </dependency>
 
-            <!-- EasyExcel（HR 导出用） -->
+            <!-- EasyExcel锛圚R 瀵煎嚭鐢級 -->
             <dependency>
                 <groupId>com.alibaba</groupId>
                 <artifactId>easyexcel</artifactId>
                 <version>${easyexcel.version}</version>
             </dependency>
 
-            <!-- MapStruct 对象映射 -->
+            <!-- MapStruct 瀵硅薄鏄犲皠 -->
             <dependency>
                 <groupId>org.mapstruct</groupId>
                 <artifactId>mapstruct</artifactId>
@@ -182,7 +189,7 @@
                 <version>${lombok-mapstruct-binding.version}</version>
             </dependency>
 
-            <!-- Testcontainers 集成测试 -->
+            <!-- Testcontainers 闆嗘垚娴嬭瘯 -->
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>

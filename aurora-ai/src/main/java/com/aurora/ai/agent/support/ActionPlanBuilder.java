@@ -1,0 +1,262 @@
+package com.aurora.ai.agent.support;
+
+import com.aurora.ai.agent.entity.AiAgentActionDO;
+import com.aurora.ai.agent.model.resp.ActionResp;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Component
+@RequiredArgsConstructor
+public class ActionPlanBuilder {
+
+    private static final Pattern COURSE_ID_PATTERN = Pattern.compile("(?:courseId|\\u8bfe\\u7a0bID|\\u8bfe\\u7a0bid|\\u8bfe\\u7a0b)\\s*[:\\uFF1A#]?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern STUDENT_ID_PATTERN = Pattern.compile("(?:studentId|\\u5b66\\u751fID|\\u5b66\\u751fid|\\u5b66\\u751f)\\s*[:\\uFF1A#]?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern USER_ID_PATTERN = Pattern.compile("(?:userId|\\u7528\\u6237ID|\\u7528\\u6237id|\\u8d26\\u53f7)\\s*[:\\uFF1A#]?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CAPACITY_PATTERN = Pattern.compile("(?:capacity|\\u5bb9\\u91cf|\\u540d\\u989d)\\s*(?:to|=|:|\\uFF1A|\\u6539\\u4e3a|\\u8bbe\\u7f6e\\u4e3a|\\u8c03\\u6574\\u4e3a)?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern STATUS_PATTERN = Pattern.compile("(?:status|\\u72b6\\u6001)\\s*(?:to|=|:|\\uFF1A|\\u6539\\u4e3a|\\u8bbe\\u7f6e\\u4e3a)?\\s*(0|1|enable|disable|enabled|disabled|on|off|\\u542f\\u7528|\\u7981\\u7528)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ANY_NUMBER_PATTERN = Pattern.compile("(\\d+)");
+
+    private final ObjectMapper objectMapper;
+
+    public AiAgentActionDO tryBuildPendingAction(Long sessionId, Long userId, String userContent) {
+        if (userContent == null) {
+            return null;
+        }
+        for (ActionFactory factory : new ActionFactory[]{
+                this::tryBuildCourseCapacityAction,
+                this::tryBuildCourseStatusAction,
+                this::tryBuildStudentBindAction,
+                this::tryBuildStudentUnbindAction,
+                this::tryBuildSelectionDropAction
+        }) {
+            AiAgentActionDO action = factory.build(sessionId, userId, userContent);
+            if (action != null) {
+                return action;
+            }
+        }
+        if (!hasMutationIntent(userContent)) {
+            return null;
+        }
+        AiAgentActionDO action = baseAction(sessionId, userId);
+        action.setToolName("pending.edu.tool");
+        action.setPlanSummary("Detected a possible EDU mutation request, but no supported deterministic tool mapping was found. Supported examples: courseId 123 capacity 60; courseId 123 status 1; studentId 1 userId 2 bind; studentId 1 courseId 2 drop.");
+        action.setRiskSummary("Unsupported mutation intent is not executable. No EDU data will be changed unless a registered tool and validated parameters are available.");
+        action.setParamsJson(toJson(Map.of("rawUserRequest", userContent)));
+        return action;
+    }
+
+    public ActionResp toResp(AiAgentActionDO action) {
+        if (action == null) {
+            return null;
+        }
+        return ActionResp.builder()
+                .id(action.getId())
+                .sessionId(action.getSessionId())
+                .messageId(action.getMessageId())
+                .actionType(action.getActionType())
+                .toolName(action.getToolName())
+                .planSummary(action.getPlanSummary())
+                .paramsJson(action.getParamsJson())
+                .riskSummary(action.getRiskSummary())
+                .status(action.getStatus())
+                .resultSummary(action.getResultSummary())
+                .errorMessage(action.getErrorMessage())
+                .confirmedAt(action.getConfirmedAt())
+                .executedAt(action.getExecutedAt())
+                .build();
+    }
+
+    private AiAgentActionDO tryBuildCourseCapacityAction(Long sessionId, Long userId, String userContent) {
+        String text = userContent.trim();
+        if (!(text.contains("\u5bb9\u91cf") || text.contains("\u540d\u989d") || text.toLowerCase().contains("capacity"))) {
+            return null;
+        }
+        Long courseId = extractLong(COURSE_ID_PATTERN, text);
+        Integer capacity = extractInteger(CAPACITY_PATTERN, text);
+        NumberPair pair = extractNumberPair(text);
+        if (courseId == null) {
+            courseId = pair.first() == null ? null : pair.first().longValue();
+        }
+        if (capacity == null) {
+            capacity = pair.second();
+        }
+        if (courseId == null || capacity == null) {
+            return null;
+        }
+        Map<String, Object> params = orderedParams(userContent);
+        params.put("courseId", courseId);
+        params.put("capacity", capacity);
+        return action(sessionId, userId, "edu.course.updateCapacity", params,
+                "Plan: update course " + courseId + " capacity to " + capacity + ".",
+                "Risk: capacity cannot be lower than selected count; RBAC and EDU facade validation apply.");
+    }
+
+    private AiAgentActionDO tryBuildCourseStatusAction(Long sessionId, Long userId, String userContent) {
+        String text = userContent.trim();
+        String lower = text.toLowerCase();
+        if (!(text.contains("\u72b6\u6001") || lower.contains("status") || lower.contains("enable") || lower.contains("disable") || text.contains("\u542f\u7528") || text.contains("\u7981\u7528"))) {
+            return null;
+        }
+        Long courseId = extractLong(COURSE_ID_PATTERN, text);
+        Integer status = extractStatus(text);
+        if (courseId == null || status == null) {
+            return null;
+        }
+        Map<String, Object> params = orderedParams(userContent);
+        params.put("courseId", courseId);
+        params.put("status", status);
+        return action(sessionId, userId, "edu.course.updateStatus", params,
+                "Plan: update course " + courseId + " status to " + status + ".",
+                "Risk: course status must be 0 or 1; RBAC and EDU facade validation apply.");
+    }
+
+    private AiAgentActionDO tryBuildStudentBindAction(Long sessionId, Long userId, String userContent) {
+        String text = userContent.trim();
+        String lower = text.toLowerCase();
+        if (!(lower.contains("bind") || text.contains("\u7ed1\u5b9a")) || lower.contains("unbind") || text.contains("\u89e3\u7ed1")) {
+            return null;
+        }
+        Long studentId = extractLong(STUDENT_ID_PATTERN, text);
+        Long targetUserId = extractLong(USER_ID_PATTERN, text);
+        if (studentId == null || targetUserId == null) {
+            return null;
+        }
+        Map<String, Object> params = orderedParams(userContent);
+        params.put("studentId", studentId);
+        params.put("userId", targetUserId);
+        return action(sessionId, userId, "edu.student.bindUser", params,
+                "Plan: bind student " + studentId + " to user " + targetUserId + ".",
+                "Risk: target user must exist, be enabled, have student role, and not be bound to another profile.");
+    }
+
+    private AiAgentActionDO tryBuildStudentUnbindAction(Long sessionId, Long userId, String userContent) {
+        String text = userContent.trim();
+        String lower = text.toLowerCase();
+        if (!(lower.contains("unbind") || text.contains("\u89e3\u7ed1"))) {
+            return null;
+        }
+        Long studentId = extractLong(STUDENT_ID_PATTERN, text);
+        if (studentId == null) {
+            return null;
+        }
+        Map<String, Object> params = orderedParams(userContent);
+        params.put("studentId", studentId);
+        return action(sessionId, userId, "edu.student.unbindUser", params,
+                "Plan: unbind user from student " + studentId + ".",
+                "Risk: profile will no longer be attached to a login account after confirmation.");
+    }
+
+    private AiAgentActionDO tryBuildSelectionDropAction(Long sessionId, Long userId, String userContent) {
+        String text = userContent.trim();
+        String lower = text.toLowerCase();
+        if (!(lower.contains("drop") || text.contains("\u9000\u8bfe"))) {
+            return null;
+        }
+        Long studentId = extractLong(STUDENT_ID_PATTERN, text);
+        Long courseId = extractLong(COURSE_ID_PATTERN, text);
+        if (studentId == null || courseId == null) {
+            return null;
+        }
+        Map<String, Object> params = orderedParams(userContent);
+        params.put("studentId", studentId);
+        params.put("courseId", courseId);
+        return action(sessionId, userId, "edu.selection.dropForStudent", params,
+                "Plan: drop course " + courseId + " for student " + studentId + ".",
+                "Risk: selection will be marked dropped and course selected count will decrease through EDU facade.");
+    }
+
+    private AiAgentActionDO action(Long sessionId, Long userId, String toolName, Map<String, Object> params, String plan, String risk) {
+        AiAgentActionDO action = baseAction(sessionId, userId);
+        action.setToolName(toolName);
+        action.setPlanSummary(plan);
+        action.setRiskSummary(risk);
+        action.setParamsJson(toJson(params));
+        return action;
+    }
+
+    private Map<String, Object> orderedParams(String rawUserRequest) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("rawUserRequest", rawUserRequest);
+        return params;
+    }
+
+    private AiAgentActionDO baseAction(Long sessionId, Long userId) {
+        AiAgentActionDO action = new AiAgentActionDO();
+        action.setSessionId(sessionId);
+        action.setUserId(userId);
+        action.setActionType("MUTATION_PLAN");
+        action.setStatus(AgentActionStatus.PENDING_CONFIRM);
+        return action;
+    }
+
+    private boolean hasMutationIntent(String userContent) {
+        String text = userContent.trim();
+        String lower = text.toLowerCase();
+        return text.contains("\u4fee\u6539")
+                || text.contains("\u53d8\u66f4")
+                || text.contains("\u8c03\u6574")
+                || text.contains("\u7ed1\u5b9a")
+                || text.contains("\u89e3\u7ed1")
+                || text.contains("\u9000\u8bfe")
+                || lower.contains("update")
+                || lower.contains("change")
+                || lower.contains("bind")
+                || lower.contains("drop");
+    }
+
+    private Long extractLong(Pattern pattern, String content) {
+        Matcher matcher = pattern.matcher(content);
+        return matcher.find() ? Long.valueOf(matcher.group(1)) : null;
+    }
+
+    private Integer extractInteger(Pattern pattern, String content) {
+        Matcher matcher = pattern.matcher(content);
+        return matcher.find() ? Integer.valueOf(matcher.group(1)) : null;
+    }
+
+    private Integer extractStatus(String content) {
+        Matcher matcher = STATUS_PATTERN.matcher(content);
+        if (!matcher.find()) {
+            return null;
+        }
+        String value = matcher.group(1).toLowerCase();
+        if ("1".equals(value) || "enable".equals(value) || "enabled".equals(value) || "on".equals(value) || "\u542f\u7528".equals(value)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private NumberPair extractNumberPair(String content) {
+        Matcher matcher = ANY_NUMBER_PATTERN.matcher(content);
+        Integer first = null;
+        Integer second = null;
+        if (matcher.find()) {
+            first = Integer.valueOf(matcher.group(1));
+        }
+        if (matcher.find()) {
+            second = Integer.valueOf(matcher.group(1));
+        }
+        return new NumberPair(first, second);
+    }
+
+    private String toJson(Map<String, ?> payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (Exception ex) {
+            return "{}";
+        }
+    }
+
+    private interface ActionFactory {
+        AiAgentActionDO build(Long sessionId, Long userId, String userContent);
+    }
+
+    private record NumberPair(Integer first, Integer second) {
+    }
+}

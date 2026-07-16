@@ -1,20 +1,19 @@
 package com.aurora.common.constant;
 
 /**
- * 权限码常量
+ * 鏉冮檺鐮佸父閲? *
+ * <p>spec: docs/specs/2026-07-05-global-variables.md 搂4.2.4</p>
+ * <p>鍛藉悕瑙勫垯锛氭ā鍧?璧勬簮:鍔ㄤ綔锛屼笁娈靛紡锛屽叏灏忓啓锛宬ebab-case銆?/p>
+ * <p>鐢ㄦ硶绀轰緥锛歿@code @SaCheckPermission(PermCodeConst.System.User.ADD)}</p>
  *
- * <p>spec: docs/specs/2026-07-05-global-variables.md §4.2.4</p>
- * <p>命名规则：模块:资源:动作，三段式，全小写，kebab-case。</p>
- * <p>用法示例：{@code @SaCheckPermission(PermCodeConst.System.User.ADD)}</p>
- *
- * <p>类层级：模块 → 资源 → 动作字符串常量。每个内部类私有构造，防止实例化。</p>
+ * <p>绫诲眰绾э細妯″潡 鈫?璧勬簮 鈫?鍔ㄤ綔瀛楃涓插父閲忋€傛瘡涓唴閮ㄧ被绉佹湁鏋勯€狅紝闃叉瀹炰緥鍖栥€?/p>
  */
 public final class PermCodeConst {
 
     private PermCodeConst() {
     }
 
-    /** 系统模块（基座 RBAC） */
+    /** 绯荤粺妯″潡锛堝熀搴?RBAC锛?*/
     public static final class System {
         private System() {}
 
@@ -57,7 +56,7 @@ public final class PermCodeConst {
         }
     }
 
-    /** HR 模块（Phase 2） */
+    /** HR 妯″潡锛圥hase 2锛?*/
     public static final class Hr {
         private Hr() {}
 
@@ -94,7 +93,7 @@ public final class PermCodeConst {
         }
     }
 
-    /** EDU 模块（Phase 3） */
+    /** EDU 妯″潡锛圥hase 3锛?*/
     public static final class Edu {
         private Edu() {}
 
@@ -128,7 +127,7 @@ public final class PermCodeConst {
         public static final String SELECTION_DROP     = "edu:selection:drop";
     }
 
-    /** OJ 模块（Phase 4） */
+    /** OJ 妯″潡锛圥hase 4锛?*/
     public static final class Oj {
         private Oj() {}
 
@@ -147,7 +146,7 @@ public final class PermCodeConst {
         public static final String LEADERBOARD_VIEW   = "oj:leaderboard:view";
     }
 
-    /** MALL 模块（Phase 5，答辩核心） */
+    /** MALL 妯″潡锛圥hase 5锛岀瓟杈╂牳蹇冿級 */
     public static final class Mall {
         private Mall() {}
 
@@ -189,17 +188,49 @@ public final class PermCodeConst {
         public static final String SECKILL_JOIN = "mall:seckill:join";
     }
 
-    /** AI 模块（Phase 6） */
+    /** AI 妯″潡锛圥hase 6锛?*/
     public static final class Ai {
         private Ai() {}
 
-        public static final class Document {
-            private Document() {}
-            public static final String UPLOAD = "ai:document:upload";
-            public static final String REMOVE = "ai:document:remove";
+        public static final class Chat {
+            private Chat() {}
+            public static final String USE = "ai:chat:use";
         }
 
-        public static final String CHAT_SEND    = "ai:chat:send";
-        public static final String CHAT_HISTORY = "ai:chat:history";
-    }
-}
+        public static final class Session {
+            private Session() {}
+            public static final String LIST = "ai:session:list";
+        }
+
+        public static final class Knowledge {
+            private Knowledge() {}
+            public static final String LIST    = "ai:knowledge:list";
+            public static final String CREATE  = "ai:knowledge:create";
+            public static final String UPDATE  = "ai:knowledge:update";
+            public static final String DELETE  = "ai:knowledge:delete";
+            public static final String PUBLISH = "ai:knowledge:publish";
+        }
+
+        public static final class Provider {
+            private Provider() {}
+            public static final String LIST   = "ai:provider:list";
+            public static final String CREATE = "ai:provider:create";
+            public static final String UPDATE = "ai:provider:update";
+            public static final String TEST   = "ai:provider:test";
+        }
+
+        public static final class Audit {
+            private Audit() {}
+            public static final String LIST = "ai:audit:list";
+        }
+
+        public static final String CHAT_SEND = Chat.USE;
+        public static final String CHAT_HISTORY = Session.LIST;
+
+        public static final class Document {
+            private Document() {}
+            public static final String UPLOAD = Knowledge.CREATE;
+            public static final String REMOVE = Knowledge.DELETE;
+        }
+    }}
+

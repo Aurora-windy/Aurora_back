@@ -12,8 +12,7 @@
 
     <artifactId>aurora-ai</artifactId>
     <name>aurora-ai</name>
-    <description>特色 - 全局悬浮 RAG AI 智能体（文档切片/向量检索/SSE 流式对话）</description>
-
+    <description>AURORA AI Agent module</description>
     <dependencies>
         <dependency>
             <groupId>com.aurora</groupId>
@@ -23,8 +22,11 @@
             <groupId>com.aurora</groupId>
             <artifactId>aurora-system</artifactId>
         </dependency>
-
-        <!-- Lombok（aurora-common 是 optional 不传递，需显式声明） -->
+        <dependency>
+            <groupId>com.aurora</groupId>
+            <artifactId>aurora-edu</artifactId>
+        </dependency>
+        <!-- Lombok閿涘潊urora-common 閺?optional 娑撳秳绱堕柅鎺炵礉闂団偓閺勬儳绱℃竟鐗堟閿?-->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -33,3 +35,4 @@
     </dependencies>
 
 </project>
+
