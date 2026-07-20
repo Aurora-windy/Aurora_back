@@ -39,6 +39,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
+    private static final String USAGE_CHAT = "CHAT";
+    private static final String USAGE_BOTH = "BOTH";
     private final AiChatSessionMapper sessionMapper;
     private final AiChatMessageMapper messageMapper;
     private final AiAgentActionMapper actionMapper;
@@ -155,10 +157,14 @@ public class ChatServiceImpl implements ChatService {
 
     private AiModelProviderDO requireEnabledProvider(Long providerId) {
         AiModelProviderDO provider = providerMapper.selectById(providerId);
-        if (provider == null || provider.getEnabled() == null || provider.getEnabled() != 1) {
+        if (provider == null || provider.getEnabled() == null || provider.getEnabled() != 1 || !isChatCapable(provider.getUsageType())) {
             throw new BizException(BizCode.DATA_NOT_FOUND, "Enabled provider does not exist");
         }
         return provider;
+    }
+
+    private boolean isChatCapable(String usageType) {
+        return usageType == null || USAGE_CHAT.equals(usageType) || USAGE_BOTH.equals(usageType);
     }
 
     private AiChatMessageDO insertMessage(Long sessionId, String role, String content, String metadataJson) {

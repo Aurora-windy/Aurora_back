@@ -2,6 +2,7 @@ package com.aurora.ai.provider.client;
 
 import com.aurora.ai.provider.entity.AiModelProviderDO;
 import com.aurora.ai.provider.entity.AiEmbeddingConfigDO;
+import com.aurora.ai.provider.support.AiSecretCipher;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -29,7 +30,7 @@ public class OpenAiClientFactory {
                 .baseUrl(normalizeBaseUrl(provider.getBaseUrl()))
                 .requestFactory(requestFactory);
         if (StringUtils.hasText(provider.getApiKeyCipher())) {
-            builder.defaultHeader("Authorization", "Bearer " + provider.getApiKeyCipher());
+            builder.defaultHeader("Authorization", "Bearer " + AiSecretCipher.decrypt(provider.getApiKeyCipher()));
         }
 
         Map<String, Object> body = Map.of(
@@ -48,6 +49,35 @@ public class OpenAiClientFactory {
                 .toBodilessEntity();
     }
 
+    public void testEmbedding(AiModelProviderDO provider) {
+        Duration timeout = provider.getTimeoutSeconds() == null || provider.getTimeoutSeconds() < 1
+                ? DEFAULT_TIMEOUT
+                : Duration.ofSeconds(provider.getTimeoutSeconds());
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(timeout);
+        requestFactory.setReadTimeout(timeout);
+
+        RestClient.Builder builder = RestClient.builder()
+                .baseUrl(normalizeBaseUrl(provider.getBaseUrl()))
+                .requestFactory(requestFactory);
+        if (StringUtils.hasText(provider.getApiKeyCipher())) {
+            builder.defaultHeader("Authorization", "Bearer " + AiSecretCipher.decrypt(provider.getApiKeyCipher()));
+        }
+
+        Map<String, Object> body = Map.of(
+                "model", provider.getModel(),
+                "input", "ping"
+        );
+
+        builder.build()
+                .post()
+                .uri("/embeddings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     public void testEmbedding(AiEmbeddingConfigDO config) {
         Duration timeout = config.getTimeoutSeconds() == null || config.getTimeoutSeconds() < 1
                 ? DEFAULT_TIMEOUT
@@ -60,7 +90,7 @@ public class OpenAiClientFactory {
                 .baseUrl(normalizeBaseUrl(config.getBaseUrl()))
                 .requestFactory(requestFactory);
         if (StringUtils.hasText(config.getApiKeyCipher())) {
-            builder.defaultHeader("Authorization", "Bearer " + config.getApiKeyCipher());
+            builder.defaultHeader("Authorization", "Bearer " + AiSecretCipher.decrypt(config.getApiKeyCipher()));
         }
 
         Map<String, Object> body = Map.of(

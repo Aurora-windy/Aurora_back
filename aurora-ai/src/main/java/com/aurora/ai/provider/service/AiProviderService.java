@@ -22,4 +22,6 @@ public interface AiProviderService {
     void setEnabled(Long id, ProviderEnabledReq req);
 
     ProviderTestResp test(Long id);
+
+    void delete(Long id);
 }

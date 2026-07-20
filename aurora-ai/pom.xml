@@ -26,13 +26,21 @@
             <groupId>com.aurora</groupId>
             <artifactId>aurora-edu</artifactId>
         </dependency>
-        <!-- Lombok閿涘潊urora-common 閺?optional 娑撳秳绱堕柅鎺炵礉闂団偓閺勬儳绱℃竟鐗堟閿?-->
+        <!-- Lombok闁挎稑娼妘rora-common 闁?optional 濞戞挸绉崇槐鍫曟焻閹虹偟绀夐梻鍥ｅ亾闁哄嫭鍎崇槐鈩冪珶閻楀牊顫栭柨?-->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 </project>
+
+
+
 

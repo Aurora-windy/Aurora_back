@@ -13,6 +13,7 @@ import com.aurora.common.response.PageResult;
 import com.aurora.common.response.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -67,5 +68,12 @@ public class AiProviderController {
     @PostMapping("/admin/providers/{id}/test")
     public Result<ProviderTestResp> test(@PathVariable Long id) {
         return Result.ok(providerService.test(id));
+    }
+
+    @SaCheckPermission(PermCodeConst.Ai.Provider.UPDATE)
+    @DeleteMapping("/admin/providers/{id}")
+    public Result<Boolean> delete(@PathVariable Long id) {
+        providerService.delete(id);
+        return Result.ok(Boolean.TRUE);
     }
 }

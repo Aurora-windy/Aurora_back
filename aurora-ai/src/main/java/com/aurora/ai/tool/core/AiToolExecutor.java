@@ -24,7 +24,7 @@ public class AiToolExecutor {
             StpUtil.checkPermission(definition.getPermissionCode());
             result = definition.getHandler().execute(request);
         } catch (Exception ex) {
-            result = AiToolResult.fail(ex.getClass().getSimpleName(), ex.getMessage());
+            result = AiToolResult.fail(ex.getClass().getSimpleName(), "tool execution failed");
         }
         auditService.record(request, definition, result, startedAt, LocalDateTime.now());
         return result;

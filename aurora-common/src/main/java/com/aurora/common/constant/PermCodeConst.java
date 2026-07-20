@@ -232,5 +232,20 @@ public final class PermCodeConst {
             public static final String UPLOAD = Knowledge.CREATE;
             public static final String REMOVE = Knowledge.DELETE;
         }
-    }}
+    }
 
+    /** Builder 项目生成平台 */
+    public static final class Builder {
+        private Builder() {}
+
+        public static final class Module {
+            private Module() {}
+            public static final String LIST = "builder:module:list";
+        }
+
+        public static final class Parse {
+            private Parse() {}
+            public static final String USE = "builder:parse:use";
+        }
+    }
+}

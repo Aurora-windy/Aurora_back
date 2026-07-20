@@ -40,3 +40,6 @@ logs/
 ### Secrets ###
 **/application-dev.yml
 **/application-local.yml
+.env
+.env.*
+!.env.example

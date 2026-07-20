@@ -1,3 +1,4 @@
+
 package com.aurora.ai.provider.model.resp;
 
 import lombok.Builder;
@@ -17,8 +18,9 @@ public class ProviderResp implements Serializable {
     private Long id;
     private String code;
     private String name;
-    private String baseUrl;
     private String model;
+    private String usageType;
+    private Integer embeddingDimension;
     private BigDecimal temperature;
     private Integer maxTokens;
     private Integer timeoutSeconds;

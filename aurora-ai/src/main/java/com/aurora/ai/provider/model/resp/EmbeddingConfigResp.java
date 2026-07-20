@@ -14,7 +14,6 @@ public class EmbeddingConfigResp implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private Long id;
-    private String baseUrl;
     private String model;
     private Integer dimension;
     private Integer timeoutSeconds;

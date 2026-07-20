@@ -81,10 +81,10 @@ public class ActionPlanBuilder {
         Integer capacity = extractInteger(CAPACITY_PATTERN, text);
         NumberPair pair = extractNumberPair(text);
         if (courseId == null) {
-            courseId = pair.first() == null ? null : pair.first().longValue();
+            courseId = pair.first();
         }
         if (capacity == null) {
-            capacity = pair.second();
+            capacity = pair.second() == null ? null : pair.second().intValue();
         }
         if (courseId == null || capacity == null) {
             return null;
@@ -234,13 +234,13 @@ public class ActionPlanBuilder {
 
     private NumberPair extractNumberPair(String content) {
         Matcher matcher = ANY_NUMBER_PATTERN.matcher(content);
-        Integer first = null;
-        Integer second = null;
+        Long first = null;
+        Long second = null;
         if (matcher.find()) {
-            first = Integer.valueOf(matcher.group(1));
+            first = Long.valueOf(matcher.group(1));
         }
         if (matcher.find()) {
-            second = Integer.valueOf(matcher.group(1));
+            second = Long.valueOf(matcher.group(1));
         }
         return new NumberPair(first, second);
     }
@@ -257,6 +257,6 @@ public class ActionPlanBuilder {
         AiAgentActionDO build(Long sessionId, Long userId, String userContent);
     }
 
-    private record NumberPair(Integer first, Integer second) {
+    private record NumberPair(Long first, Long second) {
     }
 }

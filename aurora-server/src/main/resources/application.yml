@@ -76,5 +76,15 @@ aurora:
   captcha:
     expire-seconds: 120             # 验证码有效期（秒）
     key-prefix: "aurora:captcha:"          # Redis 存验证码的 key 前缀
+  ai:
+    embedding:
+      enabled: ${AURORA_EMBEDDING_ENABLED:false}
+      provider-mode: ${AURORA_EMBEDDING_PROVIDER_MODE:local}
+      cloud-consent: ${AURORA_EMBEDDING_CLOUD_CONSENT:false}
+      base-url: ${AURORA_EMBEDDING_BASE_URL:}
+      api-key: ${AURORA_EMBEDDING_API_KEY:}
+      model: ${AURORA_EMBEDDING_MODEL:}
+      dimension: ${AURORA_EMBEDDING_DIMENSION:0}
+      timeout-seconds: ${AURORA_EMBEDDING_TIMEOUT_SECONDS:60}
   jackson:
     big-number-mode: string       # flexible=超出JS安全范围才转String | string=所有Long一律转String

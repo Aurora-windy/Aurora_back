@@ -13,6 +13,7 @@ import com.aurora.ai.provider.model.resp.ProviderOptionResp;
 import com.aurora.ai.provider.model.resp.ProviderResp;
 import com.aurora.ai.provider.model.resp.ProviderTestResp;
 import com.aurora.ai.provider.service.AiProviderService;
+import com.aurora.ai.provider.support.AiSecretCipher;
 import com.aurora.common.exception.BizException;
 import com.aurora.common.response.BizCode;
 import com.aurora.common.response.PageResult;
@@ -30,6 +31,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiProviderServiceImpl implements AiProviderService {
 
+    private static final String USAGE_CHAT = "CHAT";
+    private static final String USAGE_EMBEDDING = "EMBEDDING";
+    private static final String USAGE_BOTH = "BOTH";
+
     private final AiModelProviderMapper providerMapper;
     private final OpenAiClientFactory openAiClientFactory;
 
@@ -37,6 +42,8 @@ public class AiProviderServiceImpl implements AiProviderService {
     public List<ProviderOptionResp> listEnabled() {
         List<AiModelProviderDO> providers = providerMapper.selectList(Wrappers.<AiModelProviderDO>lambdaQuery()
                 .eq(AiModelProviderDO::getEnabled, 1)
+                .and(wrapper -> wrapper.in(AiModelProviderDO::getUsageType, USAGE_CHAT, USAGE_BOTH)
+                        .or().isNull(AiModelProviderDO::getUsageType))
                 .orderByAsc(AiModelProviderDO::getSortOrder)
                 .orderByDesc(AiModelProviderDO::getCreateTime));
         return providers.stream().map(this::toOptionResp).toList();
@@ -59,6 +66,9 @@ public class AiProviderServiceImpl implements AiProviderService {
     @Transactional(rollbackFor = Exception.class)
     public Long create(ProviderSaveReq req) {
         ensureCodeUnique(req.getCode(), null);
+        if (!StringUtils.hasText(req.getBaseUrl())) {
+            throw new BizException(BizCode.PARAM_ERROR, "baseUrl must not be blank");
+        }
         AiModelProviderDO provider = new AiModelProviderDO();
         fill(provider, req, true);
         providerMapper.insert(provider);
@@ -85,20 +95,31 @@ public class AiProviderServiceImpl implements AiProviderService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long id) {
+        requireProvider(id);
+        providerMapper.deleteById(id);
+    }
+
+    @Override
     public ProviderTestResp test(Long id) {
         AiModelProviderDO provider = requireProvider(id);
         Instant startedAt = Instant.now();
         try {
-            openAiClientFactory.testChatCompletion(provider);
+            if (isEmbeddingOnly(provider.getUsageType())) {
+                openAiClientFactory.testEmbedding(provider);
+            } else {
+                openAiClientFactory.testChatCompletion(provider);
+            }
             return ProviderTestResp.builder()
                     .success(Boolean.TRUE)
-                    .message("模型连通性测试成功")
+                    .message("provider connectivity test success")
                     .durationMs(Duration.between(startedAt, Instant.now()).toMillis())
                     .build();
         } catch (Exception ex) {
             return ProviderTestResp.builder()
                     .success(Boolean.FALSE)
-                    .message(ex.getMessage())
+                    .message("provider connectivity test failed")
                     .durationMs(Duration.between(startedAt, Instant.now()).toMillis())
                     .build();
         }
@@ -107,11 +128,17 @@ public class AiProviderServiceImpl implements AiProviderService {
     private void fill(AiModelProviderDO provider, ProviderSaveReq req, boolean create) {
         provider.setCode(req.getCode());
         provider.setName(req.getName());
-        provider.setBaseUrl(req.getBaseUrl());
+        if (create || StringUtils.hasText(req.getBaseUrl())) {
+            provider.setBaseUrl(req.getBaseUrl());
+        }
         if (create || StringUtils.hasText(req.getApiKey())) {
             provider.setApiKeyCipher(maskAndStoreApiKey(req.getApiKey()));
         }
         provider.setModel(req.getModel());
+        String usageType = normalizeUsageType(req.getUsageType());
+        validateEmbeddingDimension(usageType, req.getEmbeddingDimension());
+        provider.setUsageType(usageType);
+        provider.setEmbeddingDimension(req.getEmbeddingDimension());
         provider.setTemperature(req.getTemperature() == null ? new BigDecimal("0.70") : req.getTemperature());
         provider.setMaxTokens(req.getMaxTokens());
         provider.setTimeoutSeconds(req.getTimeoutSeconds() == null ? 60 : req.getTimeoutSeconds());
@@ -119,8 +146,23 @@ public class AiProviderServiceImpl implements AiProviderService {
         provider.setSortOrder(req.getSortOrder() == null ? 0 : req.getSortOrder());
     }
 
+    private String normalizeUsageType(String usageType) {
+        return StringUtils.hasText(usageType) ? usageType : USAGE_CHAT;
+    }
+
+    private void validateEmbeddingDimension(String usageType, Integer embeddingDimension) {
+        if ((USAGE_EMBEDDING.equals(usageType) || USAGE_BOTH.equals(usageType))
+                && (embeddingDimension == null || embeddingDimension < 1)) {
+            throw new BizException(BizCode.PARAM_ERROR, "embeddingDimension must be set for embedding providers");
+        }
+    }
+
+    private boolean isEmbeddingOnly(String usageType) {
+        return USAGE_EMBEDDING.equals(usageType);
+    }
+
     private String maskAndStoreApiKey(String raw) {
-        return StringUtils.hasText(raw) ? raw : null;
+        return AiSecretCipher.encrypt(raw);
     }
 
     private AiModelProviderDO requireProvider(Long id) {
@@ -145,8 +187,9 @@ public class AiProviderServiceImpl implements AiProviderService {
                 .id(provider.getId())
                 .code(provider.getCode())
                 .name(provider.getName())
-                .baseUrl(provider.getBaseUrl())
                 .model(provider.getModel())
+                .usageType(normalizeUsageType(provider.getUsageType()))
+                .embeddingDimension(provider.getEmbeddingDimension())
                 .temperature(provider.getTemperature())
                 .maxTokens(provider.getMaxTokens())
                 .timeoutSeconds(provider.getTimeoutSeconds())
@@ -162,8 +205,9 @@ public class AiProviderServiceImpl implements AiProviderService {
                 .id(provider.getId())
                 .code(provider.getCode())
                 .name(provider.getName())
-                .baseUrl(provider.getBaseUrl())
                 .model(provider.getModel())
+                .usageType(normalizeUsageType(provider.getUsageType()))
+                .embeddingDimension(provider.getEmbeddingDimension())
                 .temperature(provider.getTemperature())
                 .maxTokens(provider.getMaxTokens())
                 .timeoutSeconds(provider.getTimeoutSeconds())
@@ -171,3 +215,5 @@ public class AiProviderServiceImpl implements AiProviderService {
                 .build();
     }
 }
+
+
