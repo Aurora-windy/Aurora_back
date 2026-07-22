@@ -247,5 +247,10 @@ public final class PermCodeConst {
             private Parse() {}
             public static final String USE = "builder:parse:use";
         }
+
+        public static final class Generate {
+            private Generate() {}
+            public static final String PREVIEW = "builder:generate:preview";
+        }
     }
 }

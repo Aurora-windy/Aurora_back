@@ -11,12 +11,11 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BuilderPlanResp {
-    private String requestId;
+public class BuilderGeneratePreviewResp {
+    private String buildId;
     private String requirement;
-    private List<BuilderModuleInfoResp> selectedModules;
-    private List<String> excludedModules;
-    private List<String> missingDependencies;
+    private List<String> selectedModules;
+    private List<BuilderGeneratedFileResp> generatedFiles;
     private List<String> warnings;
     private String nextStep;
 }

@@ -1,6 +1,6 @@
 package com.aurora.ai.builder.support;
 
-import com.aurora.ai.builder.model.resp.BuilderModuleResp;
+import com.aurora.ai.builder.model.resp.BuilderModuleInfoResp;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -13,8 +13,8 @@ import java.util.stream.Collectors;
 @Component
 public class BuilderModuleRegistry {
 
-    private final List<BuilderModuleResp> modules = List.of(
-            BuilderModuleResp.builder()
+    private final List<BuilderModuleInfoResp> modules = List.of(
+            BuilderModuleInfoResp.builder()
                     .id("rbac")
                     .name("通用 RBAC 权限基座")
                     .category("base")
@@ -24,7 +24,7 @@ public class BuilderModuleRegistry {
                     .status("ready")
                     .required(Boolean.TRUE)
                     .build(),
-            BuilderModuleResp.builder()
+            BuilderModuleInfoResp.builder()
                     .id("hr")
                     .name("企业人员管理系统")
                     .category("business")
@@ -34,7 +34,7 @@ public class BuilderModuleRegistry {
                     .status("ready")
                     .required(Boolean.FALSE)
                     .build(),
-            BuilderModuleResp.builder()
+            BuilderModuleInfoResp.builder()
                     .id("edu")
                     .name("学生选课教务系统")
                     .category("business")
@@ -46,14 +46,82 @@ public class BuilderModuleRegistry {
                     .build()
     );
 
-    private final Map<String, BuilderModuleResp> moduleMap = modules.stream()
-            .collect(Collectors.toUnmodifiableMap(BuilderModuleResp::getId, Function.identity()));
+    private final Map<String, BuilderModuleInfoResp> moduleMap = modules.stream()
+            .collect(Collectors.toUnmodifiableMap(BuilderModuleInfoResp::getId, Function.identity()));
 
-    public List<BuilderModuleResp> listModules() {
+    public List<BuilderModuleInfoResp> listModules() {
         return new ArrayList<>(modules);
     }
 
-    public Optional<BuilderModuleResp> findById(String id) {
+    public Optional<BuilderModuleInfoResp> findById(String id) {
         return Optional.ofNullable(moduleMap.get(id));
+    }
+
+    public Optional<ModuleDoc> findDocById(String id) {
+        return findById(id).map(module -> new ModuleDoc(
+                module.getId(),
+                module.getName(),
+                module.getCategory(),
+                module.getDescription(),
+                module.getDependencies(),
+                module.getFeatures(),
+                Boolean.TRUE.equals(module.getRequired())
+        ));
+    }
+
+    public static final class ModuleDoc {
+        private final String id;
+        private final String name;
+        private final String category;
+        private final String description;
+        private final List<String> dependencies;
+        private final List<String> features;
+        private final boolean required;
+
+        private ModuleDoc(
+                String id,
+                String name,
+                String category,
+                String description,
+                List<String> dependencies,
+                List<String> features,
+                boolean required
+        ) {
+            this.id = id;
+            this.name = name;
+            this.category = category;
+            this.description = description;
+            this.dependencies = dependencies;
+            this.features = features;
+            this.required = required;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getCategory() {
+            return category;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public List<String> getDependencies() {
+            return dependencies;
+        }
+
+        public List<String> getFeatures() {
+            return features;
+        }
+
+        public boolean isRequired() {
+            return required;
+        }
     }
 }

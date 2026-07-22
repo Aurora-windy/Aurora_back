@@ -1,6 +1,6 @@
 package com.aurora.ai.builder.support;
 
-import com.aurora.ai.builder.model.resp.BuilderModuleResp;
+import com.aurora.ai.builder.model.resp.BuilderModuleInfoResp;
 import com.aurora.ai.builder.model.resp.BuilderPlanResp;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -79,8 +79,8 @@ public class BuilderRequirementParser {
         return missingDependencies;
     }
 
-    private List<BuilderModuleResp> toModules(Set<String> moduleIds) {
-        List<BuilderModuleResp> modules = new ArrayList<>();
+    private List<BuilderModuleInfoResp> toModules(Set<String> moduleIds) {
+        List<BuilderModuleInfoResp> modules = new ArrayList<>();
         for (String moduleId : moduleIds) {
             moduleRegistry.findById(moduleId).ifPresent(modules::add);
         }
