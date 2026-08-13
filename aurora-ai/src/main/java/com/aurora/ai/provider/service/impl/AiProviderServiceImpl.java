@@ -9,11 +9,13 @@ import com.aurora.ai.provider.mapper.AiModelProviderMapper;
 import com.aurora.ai.provider.model.req.ProviderEnabledReq;
 import com.aurora.ai.provider.model.req.ProviderPageReq;
 import com.aurora.ai.provider.model.req.ProviderSaveReq;
+import com.aurora.ai.provider.model.resp.EmbeddingModelOptionResp;
 import com.aurora.ai.provider.model.resp.ProviderOptionResp;
 import com.aurora.ai.provider.model.resp.ProviderResp;
 import com.aurora.ai.provider.model.resp.ProviderTestResp;
 import com.aurora.ai.provider.service.AiProviderService;
 import com.aurora.ai.provider.support.AiSecretCipher;
+import com.aurora.ai.provider.support.EmbeddingModelCatalog;
 import com.aurora.common.exception.BizException;
 import com.aurora.common.response.BizCode;
 import com.aurora.common.response.PageResult;
@@ -47,6 +49,11 @@ public class AiProviderServiceImpl implements AiProviderService {
                 .orderByAsc(AiModelProviderDO::getSortOrder)
                 .orderByDesc(AiModelProviderDO::getCreateTime));
         return providers.stream().map(this::toOptionResp).toList();
+    }
+
+    @Override
+    public List<EmbeddingModelOptionResp> listEmbeddingModelOptions() {
+        return EmbeddingModelCatalog.options();
     }
 
     @Override
@@ -138,6 +145,9 @@ public class AiProviderServiceImpl implements AiProviderService {
         String usageType = normalizeUsageType(req.getUsageType());
         validateEmbeddingDimension(usageType, req.getEmbeddingDimension());
         provider.setUsageType(usageType);
+        // embeddingModel 与 embeddingDimension 同一处理：CHAT 时前端不下发，存 null；
+        // EMBEDDING/BOTH 时写入用户填的 embedding 模型名（如 text-embedding-3-small）。
+        provider.setEmbeddingModel(req.getEmbeddingModel());
         provider.setEmbeddingDimension(req.getEmbeddingDimension());
         provider.setTemperature(req.getTemperature() == null ? new BigDecimal("0.70") : req.getTemperature());
         provider.setMaxTokens(req.getMaxTokens());
@@ -188,6 +198,7 @@ public class AiProviderServiceImpl implements AiProviderService {
                 .code(provider.getCode())
                 .name(provider.getName())
                 .model(provider.getModel())
+                .embeddingModel(provider.getEmbeddingModel())
                 .usageType(normalizeUsageType(provider.getUsageType()))
                 .embeddingDimension(provider.getEmbeddingDimension())
                 .temperature(provider.getTemperature())
@@ -206,6 +217,7 @@ public class AiProviderServiceImpl implements AiProviderService {
                 .code(provider.getCode())
                 .name(provider.getName())
                 .model(provider.getModel())
+                .embeddingModel(provider.getEmbeddingModel())
                 .usageType(normalizeUsageType(provider.getUsageType()))
                 .embeddingDimension(provider.getEmbeddingDimension())
                 .temperature(provider.getTemperature())

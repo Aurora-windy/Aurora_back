@@ -18,6 +18,7 @@ import com.aurora.common.response.BizCode;
 import com.aurora.common.response.PageResult;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -93,27 +94,34 @@ public class KnowledgeDocServiceImpl implements KnowledgeDocService {
     @Transactional(rollbackFor = Exception.class)
     public KnowledgePublishResp publish(Long id) {
         AiKnowledgeDocDO doc = requireDoc(id);
-        embeddingClient.requireEnabledConfig();
+        AiEmbeddingConfigDO config = embeddingClient.requireEnabledConfig();
         List<String> chunks = knowledgeChunker.chunk(doc.getContent());
         if (chunks.isEmpty()) {
             throw new BizException(BizCode.PARAM_ERROR, "Knowledge document content cannot be empty");
         }
+        // 重建：先物理清理旧分块。chunk 为可重建的衍生数据，清空重写保证幂等，
+        // 亦可自愈跨库（PG 写成功而 MySQL 状态回滚）的不一致——重新发布即修复。
         deleteChunks(id);
-        AiEmbeddingConfigDO config = embeddingClient.requireEnabledConfig();
         int embeddedCount = 0;
         int skippedCount = 0;
         for (int i = 0; i < chunks.size(); i++) {
             String content = chunks.get(i);
             List<Double> embedding = embeddingClient.embed(content);
+            // 维度自洽校验（第一道）；若与 PG 表 vector(N) 仍不符，由 PG 抛 dimension mismatch（第二道）
+            if (config.getDimension() != null && !config.getDimension().equals(embedding.size())) {
+                throw new BizException(BizCode.DOC_PROCESSING_FAILED,
+                        "向量维度 " + embedding.size() + " 与配置 " + config.getDimension()
+                                + " 不一致，请核对 embedding 模型或重建");
+            }
             AiKnowledgeChunkDO chunk = new AiKnowledgeChunkDO();
+            chunk.setId(IdWorker.getId());
             chunk.setDocId(id);
             chunk.setChunkIndex(i);
             chunk.setContent(content);
             chunk.setTokenCount(content.length());
-            chunk.setEmbeddingJson(toJson(embedding));
             chunk.setEmbeddingModel(config.getModel());
             chunk.setEmbeddingDimension(config.getDimension());
-            chunkMapper.insert(chunk);
+            chunkMapper.insertChunkWithVector(chunk, toJson(embedding));
             embeddedCount++;
         }
         doc.setStatus(KnowledgeDocStatus.PUBLISHED);
@@ -156,7 +164,8 @@ public class KnowledgeDocServiceImpl implements KnowledgeDocService {
     }
 
     private void deleteChunks(Long docId) {
-        chunkMapper.delete(Wrappers.<AiKnowledgeChunkDO>lambdaQuery().eq(AiKnowledgeChunkDO::getDocId, docId));
+        // chunk 表已迁至 PostgreSQL(PgVector)，物理删除（衍生数据，重建幂等）
+        chunkMapper.deleteByDocId(docId);
     }
 
     private String toJson(List<Double> embedding) {

@@ -126,14 +126,23 @@ public class OpenAiEmbeddingClient implements EmbeddingClient {
     }
 
     private AiEmbeddingConfigDO toEmbeddingConfig(AiModelProviderDO provider) {
-        if (!StringUtils.hasText(provider.getBaseUrl()) || !StringUtils.hasText(provider.getModel())) {
+        if (!StringUtils.hasText(provider.getBaseUrl())) {
             throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding provider configuration is incomplete");
         }
-        Integer dimension = resolveDimension(provider.getModel(), provider.getEmbeddingDimension());
+        // embedding 优先用 embedding_model（如 text-embedding-3-small），为空则 fallback 到 model，
+        // 兼容个别 chat 模型本身也支持 embedding 的场景。resolveDimension 同样以 embedding 模型名为准，
+        // 这样已知 embedding 模型可自动解析维度，无需手动填 dimension。
+        String embeddingModel = StringUtils.hasText(provider.getEmbeddingModel())
+                ? provider.getEmbeddingModel()
+                : provider.getModel();
+        if (!StringUtils.hasText(embeddingModel)) {
+            throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding provider configuration is incomplete");
+        }
+        Integer dimension = resolveDimension(embeddingModel, provider.getEmbeddingDimension());
         AiEmbeddingConfigDO config = new AiEmbeddingConfigDO();
         config.setBaseUrl(provider.getBaseUrl());
         config.setApiKeyCipher(provider.getApiKeyCipher());
-        config.setModel(provider.getModel());
+        config.setModel(embeddingModel);
         config.setDimension(dimension);
         config.setTimeoutSeconds(provider.getTimeoutSeconds());
         config.setEnabled(provider.getEnabled());

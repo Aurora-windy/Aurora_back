@@ -4,6 +4,7 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.aurora.ai.provider.model.req.ProviderEnabledReq;
 import com.aurora.ai.provider.model.req.ProviderPageReq;
 import com.aurora.ai.provider.model.req.ProviderSaveReq;
+import com.aurora.ai.provider.model.resp.EmbeddingModelOptionResp;
 import com.aurora.ai.provider.model.resp.ProviderOptionResp;
 import com.aurora.ai.provider.model.resp.ProviderResp;
 import com.aurora.ai.provider.model.resp.ProviderTestResp;
@@ -36,6 +37,12 @@ public class AiProviderController {
     @GetMapping("/providers/enabled")
     public Result<List<ProviderOptionResp>> enabled() {
         return Result.ok(providerService.listEnabled());
+    }
+
+    @SaCheckPermission(PermCodeConst.Ai.Provider.LIST)
+    @GetMapping("/admin/providers/embedding-models")
+    public Result<List<EmbeddingModelOptionResp>> embeddingModels() {
+        return Result.ok(providerService.listEmbeddingModelOptions());
     }
 
     @SaCheckPermission(PermCodeConst.Ai.Provider.LIST)

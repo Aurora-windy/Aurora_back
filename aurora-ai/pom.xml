@@ -26,6 +26,11 @@
             <groupId>com.aurora</groupId>
             <artifactId>aurora-edu</artifactId>
         </dependency>
+        <!-- 多数据源:知识库向量检索走 PostgreSQL(PgVector),@DS 注解编译期可见 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>dynamic-datasource-spring-boot3-starter</artifactId>
+        </dependency>
         <!-- Lombok闁挎稑娼妘rora-common 闁?optional 濞戞挸绉崇槐鍫曟焻閹虹偟绀夐梻鍥ｅ亾闁哄嫭鍎崇槐鈩冪珶閻楀牊顫栭柨?-->
         <dependency>
             <groupId>org.projectlombok</groupId>

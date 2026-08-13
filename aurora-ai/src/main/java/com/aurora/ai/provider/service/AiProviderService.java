@@ -3,6 +3,7 @@ package com.aurora.ai.provider.service;
 import com.aurora.ai.provider.model.req.ProviderEnabledReq;
 import com.aurora.ai.provider.model.req.ProviderPageReq;
 import com.aurora.ai.provider.model.req.ProviderSaveReq;
+import com.aurora.ai.provider.model.resp.EmbeddingModelOptionResp;
 import com.aurora.ai.provider.model.resp.ProviderOptionResp;
 import com.aurora.ai.provider.model.resp.ProviderResp;
 import com.aurora.ai.provider.model.resp.ProviderTestResp;
@@ -24,4 +25,7 @@ public interface AiProviderService {
     ProviderTestResp test(Long id);
 
     void delete(Long id);
+
+    /** 预置 embedding 模型清单（前端下拉用，维度随模型决定）。 */
+    List<EmbeddingModelOptionResp> listEmbeddingModelOptions();
 }

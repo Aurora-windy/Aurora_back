@@ -19,6 +19,7 @@ public class ProviderResp implements Serializable {
     private String code;
     private String name;
     private String model;
+    private String embeddingModel;
     private String usageType;
     private Integer embeddingDimension;
     private BigDecimal temperature;

@@ -47,6 +47,12 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- PostgreSQL 驱动:知识库向量检索(PgVector)分库使用 -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <!-- Liquibase: 启动时自动建表 + seed 数据（参考 continew-admin） -->
         <dependency>
             <groupId>org.liquibase</groupId>

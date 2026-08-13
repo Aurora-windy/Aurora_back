@@ -24,6 +24,7 @@ public class ProviderSaveReq implements Serializable {
     private String apiKey;
     @NotBlank
     private String model;
+    private String embeddingModel;
     @Pattern(regexp = "CHAT|EMBEDDING|BOTH")
     private String usageType = "CHAT";
     @Min(1)

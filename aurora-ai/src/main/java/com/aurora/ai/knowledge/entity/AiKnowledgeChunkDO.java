@@ -13,7 +13,6 @@ public class AiKnowledgeChunkDO extends BaseDO {
     private Integer chunkIndex;
     private String content;
     private Integer tokenCount;
-    private String embeddingJson;
     private String embeddingModel;
     private Integer embeddingDimension;
     private String metadataJson;

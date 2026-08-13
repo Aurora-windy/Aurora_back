@@ -16,6 +16,7 @@ public class AiModelProviderDO extends BaseDO {
     private String baseUrl;
     private String apiKeyCipher;
     private String model;
+    private String embeddingModel;
     private String usageType;
     private Integer embeddingDimension;
     private BigDecimal temperature;

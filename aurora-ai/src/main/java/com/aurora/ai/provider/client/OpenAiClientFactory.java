@@ -65,7 +65,9 @@ public class OpenAiClientFactory {
         }
 
         Map<String, Object> body = Map.of(
-                "model", provider.getModel(),
+                "model", StringUtils.hasText(provider.getEmbeddingModel())
+                        ? provider.getEmbeddingModel()
+                        : provider.getModel(),
                 "input", "ping"
         );
 
