@@ -10,6 +10,7 @@ import com.aurora.ai.chat.service.ChatService;
 import com.aurora.common.constant.PermCodeConst;
 import com.aurora.common.response.Result;
 import jakarta.validation.Valid;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,5 +50,13 @@ public class AiChatController {
     @PostMapping("/{sessionId}/messages")
     public Result<ChatSendResp> sendMessage(@PathVariable Long sessionId, @RequestBody @Valid SendMessageReq req) {
         return Result.ok(chatService.sendMessage(sessionId, req));
+    }
+
+    @SaCheckPermission(PermCodeConst.Ai.Chat.USE)
+    @PostMapping("/{sessionId}/messages/stream")
+    public SseEmitter streamMessage(@PathVariable Long sessionId, @RequestBody @Valid SendMessageReq req) {
+        SseEmitter emitter = new SseEmitter(300_000L);
+        chatService.streamMessage(sessionId, req, emitter);
+        return emitter;
     }
 }

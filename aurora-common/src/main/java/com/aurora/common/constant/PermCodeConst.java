@@ -52,7 +52,9 @@ public final class PermCodeConst {
 
         public static final class File {
             private File() {}
+            public static final String LIST   = "system:file:list";
             public static final String UPLOAD = "system:file:upload";
+            public static final String DELETE = "system:file:delete";
         }
     }
 
@@ -222,6 +224,11 @@ public final class PermCodeConst {
         public static final class Audit {
             private Audit() {}
             public static final String LIST = "ai:audit:list";
+        }
+
+        public static final class Graph {
+            private Graph() {}
+            public static final String LIST = "ai:graph:list";
         }
 
         public static final String CHAT_SEND = Chat.USE;

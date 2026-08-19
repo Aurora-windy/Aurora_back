@@ -16,6 +16,8 @@ public class KnowledgeDocResp implements Serializable {
     private Long id;
     private String title;
     private String type;
+    /** 原文件访问地址（本地文件上传保存后） */
+    private String fileUrl;
     private String status;
     private String content;
     private String summary;

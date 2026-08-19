@@ -83,6 +83,8 @@ sa-token:
 
 # AURORA 业务配置
 aurora:
+  upload:
+    path: ${AURORA_UPLOAD_PATH:./uploads}   # 本地文件上传存储根目录（/uploads/** 静态访问）
   captcha:
     expire-seconds: 120             # 验证码有效期（秒）
     key-prefix: "aurora:captcha:"          # Redis 存验证码的 key 前缀
@@ -96,5 +98,10 @@ aurora:
       model: ${AURORA_EMBEDDING_MODEL:}
       dimension: ${AURORA_EMBEDDING_DIMENSION:0}
       timeout-seconds: ${AURORA_EMBEDDING_TIMEOUT_SECONDS:60}
+    neo4j:
+      enabled: ${AURORA_NEO4J_ENABLED:false}
+      uri: ${AURORA_NEO4J_URI:http://localhost:7474}
+      username: ${AURORA_NEO4J_USERNAME:neo4j}
+      password: ${AURORA_NEO4J_PASSWORD:neo4j}
   jackson:
     big-number-mode: string       # flexible=超出JS安全范围才转String | string=所有Long一律转String

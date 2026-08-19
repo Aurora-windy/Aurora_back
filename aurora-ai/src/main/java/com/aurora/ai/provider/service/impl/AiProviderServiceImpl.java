@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -72,6 +73,9 @@ public class AiProviderServiceImpl implements AiProviderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(ProviderSaveReq req) {
+        if (!StringUtils.hasText(req.getCode())) {
+            req.setCode(generateCode());
+        }
         ensureCodeUnique(req.getCode(), null);
         if (!StringUtils.hasText(req.getBaseUrl())) {
             throw new BizException(BizCode.PARAM_ERROR, "baseUrl must not be blank");
@@ -82,10 +86,18 @@ public class AiProviderServiceImpl implements AiProviderService {
         return provider.getId();
     }
 
+    private String generateCode() {
+        return "prov_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, ProviderSaveReq req) {
         AiModelProviderDO provider = requireProvider(id);
+        // 编辑时未传 code 则保留原值，避免空串覆盖
+        if (!StringUtils.hasText(req.getCode())) {
+            req.setCode(provider.getCode());
+        }
         ensureCodeUnique(req.getCode(), id);
         fill(provider, req, false);
         provider.setId(id);

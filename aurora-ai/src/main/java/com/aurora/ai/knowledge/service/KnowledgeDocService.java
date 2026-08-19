@@ -15,6 +15,9 @@ public interface KnowledgeDocService {
 
     void update(Long id, KnowledgeDocSaveReq req);
 
+    /** 记录原文件访问地址（本地文件上传保存后回填） */
+    void updateFileUrl(Long id, String fileUrl);
+
     void delete(Long id);
 
     KnowledgePublishResp publish(Long id);

@@ -8,6 +8,7 @@ import com.aurora.ai.knowledge.model.req.KnowledgeDocPageReq;
 import com.aurora.ai.knowledge.model.req.KnowledgeDocSaveReq;
 import com.aurora.ai.knowledge.model.resp.KnowledgeDocResp;
 import com.aurora.ai.knowledge.model.resp.KnowledgePublishResp;
+import com.aurora.ai.knowledge.graph.Neo4jGraphService;
 import com.aurora.ai.knowledge.service.KnowledgeDocService;
 import com.aurora.ai.knowledge.support.EmbeddingClient;
 import com.aurora.ai.knowledge.support.KnowledgeChunker;
@@ -38,6 +39,7 @@ public class KnowledgeDocServiceImpl implements KnowledgeDocService {
     private final AiKnowledgeChunkMapper chunkMapper;
     private final KnowledgeChunker knowledgeChunker;
     private final EmbeddingClient embeddingClient;
+    private final Neo4jGraphService neo4jGraphService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -75,6 +77,14 @@ public class KnowledgeDocServiceImpl implements KnowledgeDocService {
             doc.setPublishedAt(null);
         }
         doc.setVersion(doc.getVersion() == null ? 1 : doc.getVersion() + 1);
+        docMapper.updateById(doc);
+    }
+
+    @Override
+    public void updateFileUrl(Long id, String fileUrl) {
+        AiKnowledgeDocDO doc = new AiKnowledgeDocDO();
+        doc.setId(id);
+        doc.setFileUrl(fileUrl);
         docMapper.updateById(doc);
     }
 
@@ -127,6 +137,8 @@ public class KnowledgeDocServiceImpl implements KnowledgeDocService {
         doc.setStatus(KnowledgeDocStatus.PUBLISHED);
         doc.setPublishedAt(LocalDateTime.now());
         docMapper.updateById(doc);
+        // 图谱抽取（Neo4j 未启用或不可达时服务内部已降级，不影响文档发布）
+        neo4jGraphService.extractAndStore(id, doc.getTitle(), doc.getContent());
         return KnowledgePublishResp.builder()
                 .docId(id)
                 .chunkCount(chunks.size())
@@ -181,6 +193,7 @@ public class KnowledgeDocServiceImpl implements KnowledgeDocService {
                 .id(doc.getId())
                 .title(doc.getTitle())
                 .type(doc.getType())
+                .fileUrl(doc.getFileUrl())
                 .status(doc.getStatus())
                 .content(doc.getContent())
                 .summary(doc.getSummary())

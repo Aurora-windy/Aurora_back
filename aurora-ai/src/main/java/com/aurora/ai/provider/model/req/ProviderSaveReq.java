@@ -16,7 +16,7 @@ public class ProviderSaveReq implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @NotBlank
+    // code 选填：为空时由后端自动生成（prov_ + 12位随机串），见 AiProviderServiceImpl.generateCode
     private String code;
     @NotBlank
     private String name;

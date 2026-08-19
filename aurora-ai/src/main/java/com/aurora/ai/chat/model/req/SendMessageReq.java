@@ -13,4 +13,7 @@ public class SendMessageReq implements Serializable {
 
     @NotBlank
     private String content;
+
+    /** 是否调用知识库检索，默认开启 */
+    private Boolean useKnowledgeBase = true;
 }

@@ -95,7 +95,8 @@ public enum BizCode {
     DOC_PROCESSING_FAILED   (60001, "文档处理失败"),
     SENSITIVE_CONTENT       (60002, "问题包含敏感内容"),
     LLM_UNAVAILABLE         (60003, "AI助手暂不可用"),
-    DOC_NOT_FOUND           (60004, "未在知识库中找到相关文档");
+    DOC_NOT_FOUND           (60004, "未在知识库中找到相关文档"),
+    QUOTA_INSUFFICIENT      (60005, "AI 额度不足，请联系管理员充值或切换自有模型");
 
     private final Integer code;
     private final String msg;
