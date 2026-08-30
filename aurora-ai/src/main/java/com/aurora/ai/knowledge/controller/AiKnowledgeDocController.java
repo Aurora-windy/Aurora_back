@@ -46,8 +46,13 @@ public class AiKnowledgeDocController {
 
     /**
      * 上传文档文件（txt/md/csv/docx/xlsx）：先保存原文件到本地（返回可访问 URL），
-     * 再提取文本 → 保存草稿 → 尝试自动发布。
-     * embedding 未配置或发布失败时降级为草稿，可在列表页手动重试发布。
+     * 再提取文本 → 保存草稿 → 提交异步发布任务后<b>立即返回</b>。
+     *
+     * <p>发布走后台线程池，接口不等待向量化完成——原实现在此同步等待，
+     * 分块一多就必然超过前端 30 秒超时，是上传功能不可用的直接原因。</p>
+     *
+     * <p>前端上传后应轮询 {@code GET /ai/admin/knowledge-docs/{id}} 观察状态：
+     * PROCESSING → PUBLISHED（成功）或 DRAFT（失败，可在列表页手动重试）。</p>
      */
     @SaCheckPermission(PermCodeConst.Ai.Knowledge.CREATE)
     @PostMapping("/upload")
@@ -85,19 +90,10 @@ public class AiKnowledgeDocController {
         req.setContent(content);
         Long docId = knowledgeDocService.create(req);
         knowledgeDocService.updateFileUrl(docId, fileRef.url());
-        // 4. 尝试自动发布（切分 + embedding + 图谱抽取）；embedding 未配置时降级为草稿
-        boolean published = false;
-        String message = "上传成功，已保存为草稿";
-        try {
-            knowledgeDocService.publish(docId);
-            published = true;
-            message = "上传成功，已自动发布";
-        } catch (BizException e) {
-            message = "上传成功，但自动发布失败：" + e.getMessage() + "（可在列表手动重试发布）";
-        } catch (Exception e) {
-            message = "上传成功，但自动发布失败：" + e.getMessage();
-        }
-        return Result.ok(new KnowledgeUploadResp(docId, fileName, fileRef.url(), content.length(), published, message));
+        // 4. 提交异步发布（切分 + embedding + 图谱抽取），不再同步等待
+        knowledgeDocService.publishAsync(docId);
+        return Result.ok(new KnowledgeUploadResp(docId, fileName, fileRef.url(), content.length(),
+                false, "上传成功，正在后台解析入库"));
     }
 
     @SaCheckPermission(PermCodeConst.Ai.Knowledge.LIST)

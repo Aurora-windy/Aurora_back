@@ -59,4 +59,13 @@ public class AiChatController {
         chatService.streamMessage(sessionId, req, emitter);
         return emitter;
     }
+
+    /** 确认/拒绝后续聊（T5，T1 §7.2）：前端 confirm/reject 成功后自动调用，流式产出汇报回复 */
+    @SaCheckPermission(PermCodeConst.Ai.Chat.USE)
+    @PostMapping("/{sessionId}/actions/{actionId}/resume")
+    public SseEmitter resumeStream(@PathVariable Long sessionId, @PathVariable Long actionId) {
+        SseEmitter emitter = new SseEmitter(300_000L);
+        chatService.resumeStream(sessionId, actionId, emitter);
+        return emitter;
+    }
 }

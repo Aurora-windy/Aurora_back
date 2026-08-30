@@ -20,7 +20,14 @@ public interface KnowledgeDocService {
 
     void delete(Long id);
 
+    /** 同步发布：切分 + 向量化 + 图谱抽取，返回分块统计。耗时随文档长度线性增长 */
     KnowledgePublishResp publish(Long id);
+
+    /**
+     * 异步发布：立即把文档置为 PROCESSING 并提交后台任务后返回，不阻塞调用方。
+     * 成功则状态落 PUBLISHED，失败回退 DRAFT（可重试）。
+     */
+    void publishAsync(Long id);
 
     KnowledgePublishResp rebuildEmbedding(Long id);
 

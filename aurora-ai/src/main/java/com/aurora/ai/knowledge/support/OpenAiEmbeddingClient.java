@@ -13,17 +13,22 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
+import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class OpenAiEmbeddingClient implements EmbeddingClient {
@@ -36,6 +41,15 @@ public class OpenAiEmbeddingClient implements EmbeddingClient {
     private final AiEmbeddingConfigMapper embeddingConfigMapper;
     private final AiModelProviderMapper providerMapper;
     private final ObjectMapper objectMapper;
+
+    /**
+     * 按「baseUrl + 密钥密文 + 超时」缓存 RestClient。
+     * <p>背景：文档发布对每个分块都调一次 embedding，此前每次都 new 一个
+     * SimpleClientHttpRequestFactory（底层每次新建 TCP + TLS 连接），N 个分块即 N 次握手，
+     * 这是上传超时的主放大器。缓存后由 JDK HttpClient 复用 keep-alive 连接。</p>
+     * <p>密钥以密文参与缓存键，明文仅存在于 RestClient 的 defaultHeader 中。</p>
+     */
+    private final Map<String, RestClient> clientCache = new ConcurrentHashMap<>();
 
     @Override
     public AiEmbeddingConfigDO requireEnabledConfig() {
@@ -67,29 +81,90 @@ public class OpenAiEmbeddingClient implements EmbeddingClient {
 
     @Override
     public List<Double> embed(String text) {
-        AiEmbeddingConfigDO config = requireEnabledConfig();
-        Duration timeout = config.getTimeoutSeconds() == null || config.getTimeoutSeconds() < 1
-                ? DEFAULT_TIMEOUT
-                : Duration.ofSeconds(config.getTimeoutSeconds());
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(timeout);
-        requestFactory.setReadTimeout(timeout);
+        return embed(requireEnabledConfig(), text);
+    }
 
-        RestClient.Builder builder = RestClient.builder()
-                .baseUrl(normalizeBaseUrl(config.getBaseUrl()))
-                .requestFactory(requestFactory);
-        if (StringUtils.hasText(config.getApiKeyCipher())) {
-            builder.defaultHeader("Authorization", "Bearer " + resolveApiKey(config.getApiKeyCipher()));
-        }
-        Map<String, Object> body = Map.of("model", config.getModel(), "input", text);
-        String response = builder.build()
+    @Override
+    public List<Double> embed(AiEmbeddingConfigDO config, String text) {
+        AiEmbeddingConfigDO effective = config == null ? requireEnabledConfig() : config;
+        String response = client(effective, timeoutOf(effective))
                 .post()
                 .uri("/embeddings")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
+                .body(Map.of("model", effective.getModel(), "input", text))
                 .retrieve()
                 .body(String.class);
-        return parseEmbedding(response, config.getDimension());
+        JsonNode dataNode = readDataNode(response);
+        if (dataNode.isEmpty()) {
+            throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding response does not contain vector data");
+        }
+        return toVector(dataNode.get(0).path("embedding"), effective.getDimension());
+    }
+
+    @Override
+    public List<List<Double>> embedBatch(AiEmbeddingConfigDO config, List<String> texts) {
+        if (texts == null || texts.isEmpty()) {
+            return List.of();
+        }
+        if (texts.size() == 1) {
+            return List.of(embed(config, texts.get(0)));
+        }
+        AiEmbeddingConfigDO effective = config == null ? requireEnabledConfig() : config;
+        try {
+            String response = client(effective, timeoutOf(effective))
+                    .post()
+                    .uri("/embeddings")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("model", effective.getModel(), "input", texts))
+                    .retrieve()
+                    .body(String.class);
+            return parseEmbeddingBatch(readDataNode(response), effective.getDimension(), texts.size());
+        } catch (Exception ex) {
+            // 部分供应商/中转不接受 input 数组，或批量请求体过大被拒：降级逐条，保证功能可用
+            log.warn("批量向量化失败（{} 条），降级为逐条调用：{}", texts.size(), ex.getMessage());
+            return embedOneByOne(effective, texts);
+        }
+    }
+
+    private List<List<Double>> embedOneByOne(AiEmbeddingConfigDO config, List<String> texts) {
+        List<List<Double>> vectors = new ArrayList<>(texts.size());
+        for (String text : texts) {
+            vectors.add(embed(config, text));
+        }
+        return vectors;
+    }
+
+    private Duration timeoutOf(AiEmbeddingConfigDO config) {
+        return config.getTimeoutSeconds() == null || config.getTimeoutSeconds() < 1
+                ? DEFAULT_TIMEOUT
+                : Duration.ofSeconds(config.getTimeoutSeconds());
+    }
+
+    /**
+     * 取（或建）可复用连接的 RestClient。底层用 JDK HttpClient——自带 keep-alive 连接池，
+     * 避免每个分块重复建立 TCP + TLS。
+     */
+    private RestClient client(AiEmbeddingConfigDO config, Duration timeout) {
+        String key = normalizeBaseUrl(config.getBaseUrl()) + "|"
+                + (config.getApiKeyCipher() == null ? "" : config.getApiKeyCipher()) + "|"
+                + timeout.toMillis();
+        return clientCache.computeIfAbsent(key, ignored -> {
+            // 强制 HTTP/1.1：JDK HttpClient 默认尝试 HTTP/2，部分中转/网关不支持，
+            // 会报 "Received RST_STREAM: Protocol error"（Neo4j 侧已踩过同一个坑）
+            HttpClient httpClient = HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(timeout)
+                    .build();
+            JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+            requestFactory.setReadTimeout(timeout);
+            RestClient.Builder builder = RestClient.builder()
+                    .baseUrl(normalizeBaseUrl(config.getBaseUrl()))
+                    .requestFactory(requestFactory);
+            if (StringUtils.hasText(config.getApiKeyCipher())) {
+                builder.defaultHeader("Authorization", "Bearer " + resolveApiKey(config.getApiKeyCipher()));
+            }
+            return builder.build();
+        });
     }
 
     private AiEmbeddingConfigDO toSystemEmbeddingConfig() {
@@ -149,23 +224,50 @@ public class OpenAiEmbeddingClient implements EmbeddingClient {
         return config;
     }
 
-    private List<Double> parseEmbedding(String response, Integer expectedDimension) {
+    private JsonNode readDataNode(String response) {
         try {
-            JsonNode embeddingNode = objectMapper.readTree(response).path("data").path(0).path("embedding");
-            if (!embeddingNode.isArray()) {
+            JsonNode dataNode = objectMapper.readTree(response).path("data");
+            if (!dataNode.isArray()) {
                 throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding response does not contain vector data");
             }
-            List<Double> vector = new ArrayList<>();
-            embeddingNode.forEach(node -> vector.add(node.asDouble()));
-            if (expectedDimension != null && expectedDimension > 0 && vector.size() != expectedDimension) {
-                throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding vector dimension mismatch");
-            }
-            return vector;
+            return dataNode;
         } catch (BizException ex) {
             throw ex;
         } catch (Exception ex) {
             throw new BizException(BizCode.LLM_UNAVAILABLE, "Failed to parse embedding response");
         }
+    }
+
+    private List<Double> toVector(JsonNode embeddingNode, Integer expectedDimension) {
+        if (!embeddingNode.isArray()) {
+            throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding response does not contain vector data");
+        }
+        List<Double> vector = new ArrayList<>();
+        embeddingNode.forEach(node -> vector.add(node.asDouble()));
+        if (expectedDimension != null && expectedDimension > 0 && vector.size() != expectedDimension) {
+            throw new BizException(BizCode.LLM_UNAVAILABLE, "Embedding vector dimension mismatch");
+        }
+        return vector;
+    }
+
+    /** 按返回条目的 index 归位（缺失 index 时按数组顺序兜底），确保向量与入参文本一一对应 */
+    private List<List<Double>> parseEmbeddingBatch(JsonNode dataNode, Integer expectedDimension, int expectedCount) {
+        List<List<Double>> slots = new ArrayList<>(Collections.nCopies(expectedCount, null));
+        int cursor = 0;
+        for (JsonNode node : dataNode) {
+            List<Double> vector = toVector(node.path("embedding"), expectedDimension);
+            int idx = node.hasNonNull("index") ? node.path("index").asInt() : cursor;
+            if (idx >= 0 && idx < expectedCount) {
+                slots.set(idx, vector);
+            }
+            cursor++;
+        }
+        for (int i = 0; i < expectedCount; i++) {
+            if (slots.get(i) == null) {
+                throw new BizException(BizCode.LLM_UNAVAILABLE, "批量向量化返回条数不符，期望 " + expectedCount + " 条");
+            }
+        }
+        return slots;
     }
 
     private Integer resolveDimension(String model, Integer configuredDimension) {

@@ -25,4 +25,9 @@ public interface ChatService {
     ChatSendResp sendMessage(Long sessionId, SendMessageReq req);
 
     void streamMessage(Long sessionId, SendMessageReq req, SseEmitter emitter);
+
+    /**
+     * 确认/拒绝后续聊（T5，T1 §7.2）：从 action 表重建上下文，流式产出汇报回复（SSE：token/toolStatus/done）。
+     */
+    void resumeStream(Long sessionId, Long actionId, SseEmitter emitter);
 }

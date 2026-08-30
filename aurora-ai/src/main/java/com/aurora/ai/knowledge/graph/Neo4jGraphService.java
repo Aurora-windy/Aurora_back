@@ -8,11 +8,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -33,6 +35,24 @@ public class Neo4jGraphService {
     private static final String DB_TX = "/db/neo4j/tx/commit";
     private static final String USAGE_CHAT = "CHAT";
     private static final String USAGE_BOTH = "BOTH";
+    private static final String USAGE_GRAPH = "GRAPH";
+
+    /** Neo4j 不可达时不能无限等待，否则上传请求被挂死、前端只看到超时而无任何错误 */
+    private static final Duration NEO4J_CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration NEO4J_READ_TIMEOUT = Duration.ofSeconds(30);
+
+    /** 单次抽取送进 LLM 的最大文本长度 */
+    private static final int EXTRACT_MAX_CHARS = 3000;
+
+    /**
+     * 抽取结果的最大生成 token 数。
+     * <p>必须给推理类模型留足余量：R1 / o1 系（部分中转以 gpt-5.x 等名义提供）会把
+     * "思考过程"写进 reasoning_content，而这部分<b>同样消耗 max_tokens</b>。给窄了
+     * 思考还没写完额度就耗尽，真正装 JSON 的 content 压根没生成——表现就是
+     * "调用成功、不报错，但一条三元组都没有"。</p>
+     * <p>上传已异步化，不再受前端 30 秒超时牵制，无需为了提速牺牲输出完整性。</p>
+     */
+    private static final int EXTRACT_MAX_TOKENS = 4000;
 
     private final Neo4jProperties properties;
     private final ObjectMapper objectMapper;
@@ -53,21 +73,50 @@ public class Neo4jGraphService {
         return properties.isEnabled();
     }
 
-    /** 文档发布后抽取三元组入库（失败仅告警，不影响主流程） */
-    public void extractAndStore(Long docId, String title, String content) {
+    /**
+     * 抽取结果：三元组条数 + 失败原因（成功时 reason 为 null）。
+     * <p>把诊断信息回传给上层，异步上传场景下用户能直接在前端看到「为什么没抽到」，
+     * 不用翻后端日志也能定位是供应商问题、LLM 输出格式问题还是内容问题。</p>
+     */
+    public record ExtractResult(int triples, String reason) {
+    }
+
+    /**
+     * 文档发布后抽取三元组入库（失败仅告警，不影响主流程）。
+     *
+     * @return 抽取结果（条数 + 失败原因）；图谱未启用时返回 0 + 原因
+     */
+    public ExtractResult extractAndStore(Long docId, String title, String content) {
         if (!properties.isEnabled()) {
-            return;
+            return new ExtractResult(0, "图谱未启用（环境变量 AURORA_NEO4J_ENABLED=true）");
         }
+        StringBuilder reason = new StringBuilder();
         try {
-            List<Triple> triples = parseTriples(extractTriples(content));
-            for (Triple t : triples) {
-                runCypher("MERGE (s:Entity {name:$s}) MERGE (o:Entity {name:$o}) "
-                                + "MERGE (s)-[:REL {type:$r, docId:$docId}]->(o)",
-                        Map.of("s", t.subject(), "o", t.object(), "r", t.relation(), "docId", String.valueOf(docId)));
+            List<Triple> triples = parseTriples(extractTriples(content, reason), reason);
+            if (triples.isEmpty()) {
+                String r = reason.length() > 0 ? reason.toString() : "模型未生成任何三元组";
+                log.warn("图谱抽取：未得到任何三元组 docId={} contentChars={} reason={}",
+                        docId, content.length(), r);
+                return new ExtractResult(0, r);
             }
+            // 一次事务批量写入：UNWIND + 参数列表。
+            // 此前是每条三元组一次 HTTP 往返，抽 N 条即 N 次事务提交，是上传超时的次放大器。
+            List<Map<String, Object>> rows = new ArrayList<>(triples.size());
+            for (Triple t : triples) {
+                rows.add(Map.of("s", t.subject(), "o", t.object(),
+                        "r", t.relation(), "docId", String.valueOf(docId)));
+            }
+            runCypher("UNWIND $rows AS row "
+                            + "MERGE (s:Entity {name:row.s}) "
+                            + "MERGE (o:Entity {name:row.o}) "
+                            + "MERGE (s)-[:REL {type:row.r, docId:row.docId}]->(o)",
+                    Map.of("rows", rows));
             log.info("Neo4j 图谱抽取完成 docId={} triples={}", docId, triples.size());
+            return new ExtractResult(triples.size(), null);
         } catch (Exception e) {
+            String msg = "Neo4j 写入异常: " + e.getMessage();
             log.warn("Neo4j 图谱抽取失败 docId={}: {}", docId, e.getMessage());
+            return new ExtractResult(0, msg);
         }
     }
 
@@ -148,7 +197,15 @@ public class Neo4jGraphService {
                     if (base.endsWith("/")) {
                         base = base.substring(0, base.length() - 1);
                     }
+                    // 必须显式设超时：默认的 SimpleClientHttpRequestFactory 连接超时为 0（无限等待），
+                    // Neo4j 不可达时会把上传请求挂死，前端只看到「超时」而拿不到任何错误。
+                    // 用 SimpleClientHttpRequestFactory 而非 JDK HttpClient：后者默认尝试 HTTP/2，
+                    // 与 Neo4j 5 的 HTTP 端点不兼容，会报 "Received RST_STREAM: Protocol error"。
+                    SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+                    requestFactory.setConnectTimeout(NEO4J_CONNECT_TIMEOUT);
+                    requestFactory.setReadTimeout(NEO4J_READ_TIMEOUT);
                     neo4jClient = RestClient.builder().baseUrl(base)
+                            .requestFactory(requestFactory)
                             .defaultHeader("Authorization", "Basic " + auth)
                             .build();
                 }
@@ -157,41 +214,90 @@ public class Neo4jGraphService {
         return neo4jClient;
     }
 
-    private String extractTriples(String content) {
+    private String extractTriples(String content, StringBuilder reason) {
         AiModelProviderDO provider = chatProvider();
         if (provider == null) {
+            String msg = "未找到可用供应商（需启用「用途=GRAPH」的供应商，或回退到 CHAT/BOTH 的启用供应商）";
+            log.warn("图谱抽取跳过：{}", msg);
+            reason.append(msg);
             return "[]";
         }
-        String text = content.length() > 4000 ? content.substring(0, 4000) : content;
-        List<Map<String, String>> messages = List.of(
-                Map.of("role", "system", "content",
+        String text = content.length() > EXTRACT_MAX_CHARS ? content.substring(0, EXTRACT_MAX_CHARS) : content;
+        List<Map<String, Object>> messages = List.of(
+                Map.<String, Object>of("role", "system", "content",
                         "你是知识图谱抽取器。从文本中抽取实体关系三元组，仅输出 JSON 数组，"
                                 + "格式：[{\"subject\":\"实体1\",\"relation\":\"关系\",\"object\":\"实体2\"}]，不要任何解释。"),
-                Map.of("role", "user", "content", text));
+                Map.<String, Object>of("role", "user", "content", text));
         try {
-            return openAiClientFactory.chatCompletion(provider, messages, 0.0, 1500);
+            String raw = openAiClientFactory.chatCompletion(provider, messages, 0.0, EXTRACT_MAX_TOKENS);
+            // 返回字符数是判断"抽不到"的第一手线索：0/2（就是 []）说明模型没产出，
+            // 几百字符但解析失败说明输出形态不对（见 parseTriples 打的原文）
+            log.info("图谱抽取：供应商={} 模型={} 输入字符数={} 返回字符数={}",
+                    provider.getName(), provider.getModel(), text.length(), raw == null ? 0 : raw.length());
+            if (!StringUtils.hasText(raw) || "[]".equals(raw.trim())) {
+                String msg = "供应商=" + provider.getName() + " 模型=" + provider.getModel()
+                        + " 返回空数组（输入字符数=" + text.length() + "）";
+                log.warn("图谱抽取：模型返回空数组，{}", msg);
+                reason.append(msg);
+            }
+            return raw;
         } catch (Exception e) {
+            String msg = "供应商=" + provider.getName() + " 模型=" + provider.getModel() + " err=" + e.getMessage();
+            log.warn("图谱抽取调用失败：{}", msg);
+            reason.append(msg);
             return "[]";
         }
     }
 
-    private List<Triple> parseTriples(String json) {
+    private List<Triple> parseTriples(String json, StringBuilder reason) {
         List<Triple> out = new ArrayList<>();
         try {
             int s = json.indexOf('[');
-            int e = json.lastIndexOf(']');
-            if (s < 0 || e < 0) {
+            if (s < 0) {
+                String msg = "模型输出中未找到 JSON 数组（原文前 200 字符=" + preview(json) + "）";
+                log.warn("图谱抽取：{}", msg);
+                reason.append(msg);
                 return out;
             }
-            JsonNode arr = objectMapper.readTree(json.substring(s, e + 1));
+            int e = json.lastIndexOf(']');
+            String candidate;
+            if (e > s) {
+                candidate = json.substring(s, e + 1);
+            } else {
+                // 输出被 max_tokens 截断（没有收尾的 ]）：回退到最后一个完整对象再补 ]，
+                // 抢救已生成的部分，而不是整批丢弃
+                int lastBrace = json.lastIndexOf('}');
+                if (lastBrace <= s) {
+                    String msg = "模型输出截断且无完整对象（原文前 200 字符=" + preview(json) + "）";
+                    log.warn("图谱抽取：{}", msg);
+                    reason.append(msg);
+                    return out;
+                }
+                candidate = json.substring(s, lastBrace + 1) + "]";
+                String msg = "模型输出疑似被 max_tokens 截断，已抢救截断前的完整三元组";
+                log.warn("图谱抽取：{}", msg);
+                reason.append(msg);
+            }
+            JsonNode arr = objectMapper.readTree(candidate);
             if (arr.isArray()) {
                 for (JsonNode n : arr) {
                     out.add(new Triple(n.path("subject").asText(), n.path("relation").asText(), n.path("object").asText()));
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            String msg = "三元组 JSON 解析失败（原文前 200 字符=" + preview(json) + "）";
+            log.warn("图谱抽取：{} err={}", msg, ex.getMessage());
+            reason.append(msg);
         }
         return out;
+    }
+
+    /** 截断长文本用于日志，避免模型返回大段内容把日志冲爆 */
+    private static String preview(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.length() > 200 ? text.substring(0, 200) : text;
     }
 
     private List<String> extractEntities(String query) {
@@ -199,11 +305,11 @@ public class Neo4jGraphService {
         if (provider == null) {
             return List.of();
         }
-        List<Map<String, String>> messages = List.of(
-                Map.of("role", "system", "content",
+        List<Map<String, Object>> messages = List.of(
+                Map.<String, Object>of("role", "system", "content",
                         "从用户问题中抽取涉及的知识实体名称（人物/组织/概念/地点），"
                                 + "仅输出 JSON 数组字符串如 [\"实体A\",\"实体B\"]，无实体则输出 []。"),
-                Map.of("role", "user", "content", query));
+                Map.<String, Object>of("role", "user", "content", query));
         try {
             String r = openAiClientFactory.chatCompletion(provider, messages, 0.0, 300);
             int s = r.indexOf('[');
@@ -223,6 +329,15 @@ public class Neo4jGraphService {
     }
 
     private AiModelProviderDO chatProvider() {
+        // 优先用「图谱抽取」专用 provider（用途下拉 GRAPH）；未配置则回退聊天 provider，零配置兼容现状
+        AiModelProviderDO graph = providerMapper.selectOne(Wrappers.<AiModelProviderDO>lambdaQuery()
+                .eq(AiModelProviderDO::getEnabled, 1)
+                .eq(AiModelProviderDO::getUsageType, USAGE_GRAPH)
+                .orderByAsc(AiModelProviderDO::getSortOrder)
+                .last("LIMIT 1"));
+        if (graph != null) {
+            return graph;
+        }
         return providerMapper.selectOne(Wrappers.<AiModelProviderDO>lambdaQuery()
                 .eq(AiModelProviderDO::getEnabled, 1)
                 .in(AiModelProviderDO::getUsageType, USAGE_CHAT, USAGE_BOTH)
