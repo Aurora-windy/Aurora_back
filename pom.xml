@@ -50,6 +50,9 @@
         <testcontainers.version>1.20.4</testcontainers.version>
         <spring-ai.version>1.0.9</spring-ai.version>
         <dynamic-datasource.version>4.3.1</dynamic-datasource.version>
+        <!-- MCP 官方 Java SDK（spec 2026-08-29-ai-mcp.md）。2.0.0 为 2026-06 发布的稳定 GA，
+             要求 Java 17+；conformance 测试 Server 40/40 通过。仅 aurora-ai 模块使用。 -->
+        <mcp-sdk.version>2.0.0</mcp-sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -115,6 +118,12 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>dynamic-datasource-spring-boot3-starter</artifactId>
                 <version>${dynamic-datasource.version}</version>
+            </dependency>
+            <!-- MCP 官方 Java SDK（协议库，非 AI 编排框架，不违反「不引入 Spring AI」的决策） -->
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp</artifactId>
+                <version>${mcp-sdk.version}</version>
             </dependency>
             <dependency>
                 <groupId>cn.hutool</groupId>

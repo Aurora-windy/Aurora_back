@@ -89,6 +89,11 @@ aurora:
     expire-seconds: 120             # 验证码有效期（秒）
     key-prefix: "aurora:captcha:"          # Redis 存验证码的 key 前缀
   ai:
+    agent:
+      workspace-root: ${AURORA_WORKSPACE_ROOT:}
+      workspace-max-read-chars: ${AURORA_WORKSPACE_MAX_READ_CHARS:20000}
+      workspace-max-entries: ${AURORA_WORKSPACE_MAX_ENTRIES:200}
+      workspace-max-search-results: ${AURORA_WORKSPACE_MAX_SEARCH_RESULTS:100}
     embedding:
       enabled: ${AURORA_EMBEDDING_ENABLED:false}
       provider-mode: ${AURORA_EMBEDDING_PROVIDER_MODE:local}
@@ -103,5 +108,17 @@ aurora:
       uri: ${AURORA_NEO4J_URI:http://localhost:7474}
       username: ${AURORA_NEO4J_USERNAME:neo4j}
       password: ${AURORA_NEO4J_PASSWORD:neo4j}
+    mcp:
+      client:
+        startup-sync-enabled: ${AURORA_MCP_STARTUP_SYNC_ENABLED:false}
+      server:
+        enabled: ${AURORA_MCP_SERVER_ENABLED:false}
+        bearer-token: ${AURORA_MCP_BEARER_TOKEN:}
+        sse-endpoint: /mcp/sse
+        message-endpoint: /mcp/message
+        server-name: AURORA
+        server-version: 1.0.0
+    github:
+      token: ${AURORA_GITHUB_TOKEN:}
   jackson:
     big-number-mode: string       # flexible=超出JS安全范围才转String | string=所有Long一律转String

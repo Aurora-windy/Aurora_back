@@ -50,4 +50,23 @@ class AiToolExecutorTest {
             verify(auditService).record(any(), any(), any(), any(LocalDateTime.class), any(LocalDateTime.class));
         }
     }
+
+    @Test
+    void execute_withoutPermissionCode_allowsPublicReadOnlyTool() {
+        AiToolRequest request = AiToolRequest.builder()
+                .toolName("weather.current")
+                .params(Map.of("city", "Beijing"))
+                .build();
+        AiToolDefinition definition = AiToolDefinition.builder()
+                .name("weather.current")
+                .mutation(false)
+                .handler(req -> AiToolResult.ok(Map.of("temperature", 28.4), "ok"))
+                .build();
+        when(registry.get("weather.current")).thenReturn(definition);
+
+        AiToolResult result = executor.execute(request);
+
+        assertThat(result.getSuccess()).isTrue();
+        verify(auditService).record(any(), any(), any(), any(LocalDateTime.class), any(LocalDateTime.class));
+    }
 }

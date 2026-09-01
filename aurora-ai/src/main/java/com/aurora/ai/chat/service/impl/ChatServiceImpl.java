@@ -15,6 +15,7 @@ import com.aurora.ai.chat.mapper.AiChatSessionMapper;
 import com.aurora.ai.chat.model.req.ChatSessionPageReq;
 import com.aurora.ai.chat.model.req.CreateSessionReq;
 import com.aurora.ai.chat.model.req.SendMessageReq;
+import com.aurora.ai.chat.model.req.LocalFilesEnabledReq;
 import com.aurora.ai.chat.model.resp.ChatMessageResp;
 import com.aurora.ai.chat.model.resp.ChatSendResp;
 import com.aurora.ai.agent.model.resp.ActionResp;
@@ -114,6 +115,14 @@ public class ChatServiceImpl implements ChatService {
                         .orderByAsc(AiChatMessageDO::getCreatedAt)
                         .orderByAsc(AiChatMessageDO::getCreateTime))
                 .stream().map(this::toMessageResp).toList();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void setLocalFilesEnabled(Long sessionId, LocalFilesEnabledReq req) {
+        AiChatSessionDO session = requireOwnSession(sessionId);
+        session.setLocalFilesEnabled(Boolean.TRUE.equals(req.getEnabled()) ? 1 : 0);
+        sessionMapper.updateById(session);
     }
 
     @Override
@@ -487,6 +496,7 @@ public class ChatServiceImpl implements ChatService {
                 .model(session.getModel())
                 .status(session.getStatus())
                 .lastMessageAt(session.getLastMessageAt())
+                .localFilesEnabled(session.getLocalFilesEnabled() != null && session.getLocalFilesEnabled() == 1)
                 .createTime(session.getCreateTime())
                 .build();
     }

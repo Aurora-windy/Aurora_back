@@ -3,6 +3,7 @@ package com.aurora.ai.chat.controller;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.aurora.ai.chat.model.req.CreateSessionReq;
 import com.aurora.ai.chat.model.req.SendMessageReq;
+import com.aurora.ai.chat.model.req.LocalFilesEnabledReq;
 import com.aurora.ai.chat.model.resp.ChatMessageResp;
 import com.aurora.ai.chat.model.resp.ChatSendResp;
 import com.aurora.ai.chat.model.resp.ChatSessionResp;
@@ -13,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,6 +46,14 @@ public class AiChatController {
     @GetMapping("/{sessionId}/messages")
     public Result<List<ChatMessageResp>> listMessages(@PathVariable Long sessionId) {
         return Result.ok(chatService.listMessages(sessionId));
+    }
+
+    @SaCheckPermission(PermCodeConst.Ai.Chat.USE)
+    @PatchMapping("/{sessionId}/capabilities/local-files")
+    public Result<Boolean> setLocalFilesEnabled(@PathVariable Long sessionId,
+                                                @RequestBody @Valid LocalFilesEnabledReq req) {
+        chatService.setLocalFilesEnabled(sessionId, req);
+        return Result.ok(Boolean.TRUE);
     }
 
     @SaCheckPermission(PermCodeConst.Ai.Chat.USE)

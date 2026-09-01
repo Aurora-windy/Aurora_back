@@ -20,3 +20,7 @@ databaseChangeLog:
   - include: { file: db/changelog/mysql/2026-08-19-ai-graph-menu.sql }
   - include: { file: db/changelog/mysql/2026-08-19-ai-knowledge-file-url.sql }
   - include: { file: db/changelog/mysql/2026-08-19-sys-file.sql }
+  - include: { file: db/changelog/mysql/2026-08-30-ai-mcp-server.sql }
+  - include: { file: db/changelog/mysql/2026-08-31-ai-mcp-bearer-token.sql }
+  - include: { file: db/changelog/mysql/2026-08-30-ai-mcp-menu.sql }
+  - include: { file: db/changelog/mysql/2026-08-30-local-workspace-agent.sql }

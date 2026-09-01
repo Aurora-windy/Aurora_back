@@ -31,6 +31,17 @@
             <groupId>com.baomidou</groupId>
             <artifactId>dynamic-datasource-spring-boot3-starter</artifactId>
         </dependency>
+        <!-- MCP 官方 Java SDK:连接外部 MCP server,远程工具并入 FC 循环 -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp</artifactId>
+        </dependency>
+        <!-- MCP 2.0.0 mcp-core requires JsonProperty.isRequired() from annotations 2.20. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>2.20</version>
+        </dependency>
         <!-- Lombok闁挎稑娼妘rora-common 闁?optional 濞戞挸绉崇槐鍫曟焻閹虹偟绀夐梻鍥ｅ亾闁哄嫭鍎崇槐鈩冪珶閻楀牊顫栭柨?-->
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -6,6 +6,7 @@ import com.aurora.ai.tool.model.AiToolRequest;
 import com.aurora.ai.tool.model.AiToolResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 
@@ -21,7 +22,10 @@ public class AiToolExecutor {
         LocalDateTime startedAt = LocalDateTime.now();
         AiToolResult result;
         try {
-            StpUtil.checkPermission(definition.getPermissionCode());
+            // Public/read-only tools may intentionally omit a permission code.
+            if (StringUtils.hasText(definition.getPermissionCode())) {
+                StpUtil.checkPermission(definition.getPermissionCode());
+            }
             result = definition.getHandler().execute(request);
         } catch (Exception ex) {
             result = AiToolResult.fail(ex.getClass().getSimpleName(), "tool execution failed");

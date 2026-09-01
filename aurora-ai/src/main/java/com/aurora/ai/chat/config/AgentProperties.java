@@ -33,4 +33,5 @@ public class AgentProperties {
 
     /** tool 消息回传模型的单次结果截断长度（字符） */
     private int toolResultMaxChars = 2000;
+
 }

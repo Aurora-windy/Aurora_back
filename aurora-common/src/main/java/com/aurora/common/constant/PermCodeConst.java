@@ -231,6 +231,15 @@ public final class PermCodeConst {
             public static final String LIST = "ai:graph:list";
         }
 
+        public static final class Mcp {
+            private Mcp() {}
+            public static final String LIST   = "ai:mcp:list";
+            public static final String CREATE = "ai:mcp:create";
+            public static final String UPDATE = "ai:mcp:update";
+            public static final String DELETE = "ai:mcp:delete";
+            public static final String SYNC   = "ai:mcp:sync";
+        }
+
         public static final String CHAT_SEND = Chat.USE;
         public static final String CHAT_HISTORY = Session.LIST;
 

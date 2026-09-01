@@ -1,0 +1,7 @@
+# Local-only profile for MCP demonstrations. The base profile remains disabled by default.
+aurora:
+  ai:
+    mcp:
+      server:
+        enabled: true
+        bearer-token: ${AURORA_MCP_BEARER_TOKEN:aurora-demo-token}

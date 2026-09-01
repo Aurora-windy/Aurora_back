@@ -37,6 +37,8 @@ public class SaTokenConfig implements WebMvcConfigurer {
             "/webjars/**",
             "/favicon.ico",
             "/actuator/**",
+            // MCP Server 端点走独立 Bearer Token 认证（McpServerSecurityFilter），不经 Sa-Token
+            "/mcp/**",
     };
 
     @Override

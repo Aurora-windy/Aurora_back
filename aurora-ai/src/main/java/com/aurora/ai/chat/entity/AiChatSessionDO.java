@@ -17,4 +17,6 @@ public class AiChatSessionDO extends BaseDO {
     private String model;
     private String status;
     private LocalDateTime lastMessageAt;
+    /** 本地工作区只读能力，默认关闭。 */
+    private Integer localFilesEnabled;
 }

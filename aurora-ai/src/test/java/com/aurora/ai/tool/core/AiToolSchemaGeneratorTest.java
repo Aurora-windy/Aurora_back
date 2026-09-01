@@ -81,8 +81,10 @@ class AiToolSchemaGeneratorTest {
                 assertThat(property.get("type")).as("%s.%s type", definition.getName(), field.name()).isNotNull();
                 assertThat((String) property.get("description"))
                         .as("%s.%s description", definition.getName(), field.name()).isNotBlank();
-                assertThat(property).as("%s.%s 只含 type/format/description", definition.getName(), field.name())
-                        .containsOnlyKeys("type", "format", "description");
+                // 用子集而非 containsOnlyKeys：format 只有 DATETIME 类型才有（type=string + format=date-time），
+                // STRING/INTEGER 等字段天然不含它。此处要防的是生成出预期外的键。
+                assertThat(property.keySet()).as("%s.%s 只含 type/format/description", definition.getName(), field.name())
+                        .isSubsetOf("type", "format", "description");
             }
         }
     }

@@ -20,5 +20,6 @@ public class ChatSessionResp implements Serializable {
     private String model;
     private String status;
     private LocalDateTime lastMessageAt;
+    private Boolean localFilesEnabled;
     private LocalDateTime createTime;
 }

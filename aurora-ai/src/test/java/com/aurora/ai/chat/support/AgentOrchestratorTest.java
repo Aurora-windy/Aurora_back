@@ -160,6 +160,26 @@ class AgentOrchestratorTest {
         }).when(factory).streamChatCompletion(any(), anyList(), any(), any(), any(), any(), any(), any());
     }
 
+    /**
+     * 按调用顺序编排每轮的模型响应（第 1 次调用用第 1 个脚本，依此类推；超出则用最后一个）。
+     *
+     * <p>与 {@link #stubStream} 的区别：FC 循环<b>每一轮都会带 tools 参数</b>——这是实现的
+     * 既定行为，也符合详设 §4 的伪代码（只有 maxRounds 用尽后的强制收敛才不带 tools）。
+     * 因此不能用「是否带 tools」来区分轮次，否则桩会每轮都回 tool_calls，循环直到
+     * maxRounds 才停。真实模型拿到工具结果后会直接给出文本终答，本方法才是它的正确建模。</p>
+     */
+    private void stubRounds(RoundScript... rounds) {
+        AtomicInteger call = new AtomicInteger(0);
+        org.mockito.Mockito.doAnswer(inv -> {
+            boolean withTools = inv.getArgument(4) != null;
+            Consumer<String> onToken = inv.getArgument(5);
+            Consumer<List<OpenAiClientFactory.ToolCall>> onToolCalls = inv.getArgument(7);
+            int idx = Math.min(call.getAndIncrement(), rounds.length - 1);
+            rounds[idx].play(withTools, onToken, onToolCalls);
+            return null;
+        }).when(factory).streamChatCompletion(any(), anyList(), any(), any(), any(), any(), any(), any());
+    }
+
     private static void emitToolCall(Consumer<List<OpenAiClientFactory.ToolCall>> onToolCalls,
                                      String id, String name, String args) {
         onToolCalls.accept(List.of(new OpenAiClientFactory.ToolCall(id, name, args)));
@@ -169,13 +189,10 @@ class AgentOrchestratorTest {
 
     @Test
     void fcLoop_queryToolCall_thenFinalAnswer() {
-        stubStream((withTools, onToken, onToolCalls) -> {
-            if (withTools) {
-                emitToolCall(onToolCalls, "call_1", "edu.student.getById", "{\"studentId\":3}");
-            } else {
-                onToken.accept("学生姓名是张三");
-            }
-        });
+        stubRounds(
+                (withTools, onToken, onToolCalls) ->
+                        emitToolCall(onToolCalls, "call_1", "edu.student.getById", "{\"studentId\":3}"),
+                (withTools, onToken, onToolCalls) -> onToken.accept("学生姓名是张三"));
 
         AgentOrchestrator.AgentRunResult result =
                 orchestrator.streamConversation(SESSION_ID, USER_ID, "查一下学号 3", fcContext(), listener);
@@ -213,13 +230,10 @@ class AgentOrchestratorTest {
     @Test
     void fcLoop_wireNameMappedBackToRegistryAndDisplay() {
         // DeepSeek 官方 API 场景：模型只会回 wire 名（点号已映射为双下划线），循环须还原注册表名
-        stubStream((withTools, onToken, onToolCalls) -> {
-            if (withTools) {
-                emitToolCall(onToolCalls, "call_w", "edu__student__getById", "{\"studentId\":3}");
-            } else {
-                onToken.accept("学生姓名是张三");
-            }
-        });
+        stubRounds(
+                (withTools, onToken, onToolCalls) ->
+                        emitToolCall(onToolCalls, "call_w", "edu__student__getById", "{\"studentId\":3}"),
+                (withTools, onToken, onToolCalls) -> onToken.accept("学生姓名是张三"));
 
         AgentOrchestrator.AgentRunResult result =
                 orchestrator.streamConversation(SESSION_ID, USER_ID, "查一下学号 3", fcContext(), listener);
@@ -279,13 +293,9 @@ class AgentOrchestratorTest {
 
     @Test
     void fcLoop_unknownTool_feedbackToModel_andRecover() {
-        stubStream((withTools, onToken, onToolCalls) -> {
-            if (withTools) {
-                emitToolCall(onToolCalls, "call_g", "edu.ghost.tool", "{}");
-            } else {
-                onToken.accept("改用已知工具回答");
-            }
-        });
+        stubRounds(
+                (withTools, onToken, onToolCalls) -> emitToolCall(onToolCalls, "call_g", "edu.ghost.tool", "{}"),
+                (withTools, onToken, onToolCalls) -> onToken.accept("改用已知工具回答"));
 
         AgentOrchestrator.AgentRunResult result =
                 orchestrator.streamConversation(SESSION_ID, USER_ID, "调个不存在的", fcContext(), listener);
@@ -300,13 +310,9 @@ class AgentOrchestratorTest {
 
     @Test
     void fcLoop_invalidArgumentsJson_toldToModelAsFailure() {
-        stubStream((withTools, onToken, onToolCalls) -> {
-            if (withTools) {
-                emitToolCall(onToolCalls, "call_bad", "edu.student.getById", "不是JSON");
-            } else {
-                onToken.accept("重试成功");
-            }
-        });
+        stubRounds(
+                (withTools, onToken, onToolCalls) -> emitToolCall(onToolCalls, "call_bad", "edu.student.getById", "不是JSON"),
+                (withTools, onToken, onToolCalls) -> onToken.accept("重试成功"));
 
         AgentOrchestrator.AgentRunResult result =
                 orchestrator.streamConversation(SESSION_ID, USER_ID, "参数坏了", fcContext(), listener);

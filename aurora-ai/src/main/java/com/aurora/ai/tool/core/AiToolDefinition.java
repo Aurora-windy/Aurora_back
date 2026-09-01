@@ -19,6 +19,8 @@ public class AiToolDefinition {
     private List<ParamField> paramSchema;
     /** mutation 工具必填：挂起确认时的风险提示文案 */
     private String riskNote;
+    /** 工具需要的会话能力；为空表示无需额外能力。 */
+    private String requiredCapability;
     /**
      * MCP 远程工具专用：server 返回的 inputSchema 本就是完整 JSON Schema，直接缓存于此。
      * {@link AiToolSchemaGenerator} 优先取本字段，缺失才由 paramSchema 构建（双来源单出口，见 T1 详设 §13）。

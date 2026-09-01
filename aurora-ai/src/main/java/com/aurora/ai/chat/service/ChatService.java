@@ -3,6 +3,7 @@ package com.aurora.ai.chat.service;
 import com.aurora.ai.chat.model.req.CreateSessionReq;
 import com.aurora.ai.chat.model.req.ChatSessionPageReq;
 import com.aurora.ai.chat.model.req.SendMessageReq;
+import com.aurora.ai.chat.model.req.LocalFilesEnabledReq;
 import com.aurora.ai.chat.model.resp.ChatMessageResp;
 import com.aurora.ai.chat.model.resp.ChatSendResp;
 import com.aurora.ai.chat.model.resp.ChatSessionResp;
@@ -19,6 +20,8 @@ public interface ChatService {
     PageResult<ChatSessionResp> pageSessions(ChatSessionPageReq req);
 
     List<ChatMessageResp> listMessages(Long sessionId);
+
+    void setLocalFilesEnabled(Long sessionId, LocalFilesEnabledReq req);
 
     List<ChatMessageResp> listSessionMessagesForAdmin(Long sessionId);
 

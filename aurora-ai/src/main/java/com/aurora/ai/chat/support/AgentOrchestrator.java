@@ -185,7 +185,7 @@ public class AgentOrchestrator {
         // 合规的 assistant(tool_calls)+tool 消息对（带 tool_call_id），避免裸 tool 消息被严格校验的供应商拒绝
         List<Map<String, Object>> messages = historyAssembler.assemble(sessionId, ctx.getSystemPrompt(), userContent);
         messages.add(assistantToolCallsMessage(List.of(new OpenAiClientFactory.ToolCall("call_fastpath", AiToolSchemaGenerator.toWireName(toolName), "{}"))));
-        messages.add(toolMessage("call_fastpath", toToolContent(result)));
+        messages.add(toolMessage("call_fastpath", toToolContent(result, toolName)));
 
         StringBuilder content = new StringBuilder();
         long[] tokens = {0};
@@ -193,7 +193,7 @@ public class AgentOrchestrator {
             // tools 必须随请求带上：消息里有 assistant(tool_calls)+tool 合成对，部分中转校验"有 tool 消息必须带 tools"，
             // 缺失直接 400（联调实测）。tool_choice=auto + 结果已回拼，正常情况模型不会再发起调用
             openAiClientFactory.streamChatCompletion(resolution.provider(), messages,
-                    temperature(resolution.provider()), resolution.provider().getMaxTokens(), buildToolSchemas(),
+                    temperature(resolution.provider()), resolution.provider().getMaxTokens(), buildToolSchemas(sessionId),
                     delta -> {
                         content.append(delta);
                         listener.onToken(delta);
@@ -226,7 +226,7 @@ public class AgentOrchestrator {
     private AgentRunResult fcLoopWithFallback(AiModelProviderDO provider, Long sessionId, Long userId,
                                               List<Map<String, Object>> messages, AgentStreamListener listener,
                                               String path, String fallbackPath) {
-        List<Map<String, Object>> tools = buildToolSchemas();
+        List<Map<String, Object>> tools = buildToolSchemas(sessionId);
         StringBuilder content = new StringBuilder();
         long[] tokens = {0};
         List<Map<String, Object>> toolTrace = new ArrayList<>();
@@ -283,7 +283,7 @@ public class AgentOrchestrator {
                     listener.onToolStatus(displayName, round, ok ? "success" : "failed");
                     listener.onToolResult(displayName, result);
                     toolTrace.add(trace(round, displayName, ok ? "success" : "failed"));
-                    messages.add(toolMessage(call.id(), toToolContent(result)));
+                    messages.add(toolMessage(call.id(), toToolContent(result, displayName)));
                 }
 
                 // 轮数上限 / token 预算先到为准 → 强制不带 tools 终结一轮，让模型基于已有工具结果作答
@@ -434,10 +434,25 @@ public class AgentOrchestrator {
 
     // ==================== FC 支撑 ====================
 
-    private List<Map<String, Object>> buildToolSchemas() {
+    private List<Map<String, Object>> buildToolSchemas(Long sessionId) {
         return toolRegistry.list().stream()
+                .filter(tool -> tool.getRequiredCapability() == null
+                        || hasCapability(sessionId, tool.getRequiredCapability()))
                 .map(toolSchemaGenerator::generate)
                 .toList();
+    }
+
+    /** 未知能力默认拒绝，避免新增 capability 工具因漏改过滤逻辑而意外暴露。 */
+    private boolean hasCapability(Long sessionId, String capability) {
+        return "LOCAL_FILES_READ".equals(capability) && localFilesEnabled(sessionId);
+    }
+
+    private boolean localFilesEnabled(Long sessionId) {
+        if (sessionId == null) {
+            return false;
+        }
+        AiChatSessionDO session = sessionMapper.selectById(sessionId);
+        return session != null && Integer.valueOf(1).equals(session.getLocalFilesEnabled());
     }
 
     private AiToolDefinition lookupQuietly(String toolName) {
@@ -534,19 +549,39 @@ public class AgentOrchestrator {
 
     /** 工具结果 → 回拼给模型的文本（截断到 toolResultMaxChars，防超长结果撑爆上下文） */
     private String toToolContent(AiToolResult result) {
+        return toToolContent(result, null);
+    }
+
+    /**
+     * 工具结果 → 回拼给模型的文本。
+     * MCP 远程工具结果用 {@code <mcp_external>} 标签包裹（T-M4 注入防护），
+     * 配合 system prompt 的安全规范声明，防止恶意 MCP server 返回注入指令。
+     */
+    private String toToolContent(AiToolResult result, String toolName) {
+        String inner;
         if (!Boolean.TRUE.equals(result.getSuccess())) {
-            return "工具执行失败：" + result.getErrorMessage();
-        }
-        try {
-            String json = objectMapper.writeValueAsString(result.getData());
-            if (json.isEmpty()) {
-                return "{}";
+            inner = "工具执行失败：" + result.getErrorMessage();
+        } else {
+            try {
+                String json = objectMapper.writeValueAsString(result.getData());
+                if (json.isEmpty()) {
+                    inner = "{}";
+                } else {
+                    int max = Math.max(200, properties.getToolResultMaxChars());
+                    inner = json.length() > max ? json.substring(0, max) + "...(已截断)" : json;
+                }
+            } catch (Exception ex) {
+                inner = String.valueOf(result.getData());
             }
-            int max = Math.max(200, properties.getToolResultMaxChars());
-            return json.length() > max ? json.substring(0, max) + "...(已截断)" : json;
-        } catch (Exception ex) {
-            return String.valueOf(result.getData());
         }
+        // 外部 MCP 和本地文件内容都属于不可信数据，不能被模型当作指令执行
+        if (toolName != null && toolName.startsWith("mcp.")) {
+            return "<mcp_external source=\"" + toolName + "\">" + inner + "</mcp_external>";
+        }
+        if (toolName != null && toolName.startsWith("local.fs.")) {
+            return "<local_workspace path_tool=\"" + toolName + "\">" + inner + "</local_workspace>";
+        }
+        return inner;
     }
 
     private Map<String, Object> trace(int round, String toolName, String status) {
