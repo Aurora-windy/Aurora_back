@@ -1,6 +1,7 @@
 package com.aurora.ai.mcp.server;
 
 import com.aurora.ai.tool.core.AiToolDefinition;
+import com.aurora.ai.tool.core.AiToolExecutor;
 import com.aurora.ai.tool.core.AiToolRegistry;
 import com.aurora.ai.tool.core.AiToolSchemaGenerator;
 import com.aurora.ai.tool.model.AiToolRequest;
@@ -38,6 +39,7 @@ public class AuroraMcpController {
 
     private final McpServerProperties properties;
     private final AiToolRegistry toolRegistry;
+    private final AiToolExecutor toolExecutor;
     private final ObjectMapper objectMapper;
 
     /** 活跃的 SSE 连接（sessionId → emitter） */
@@ -200,14 +202,14 @@ public class AuroraMcpController {
                 paramMap = Map.of();
             }
 
-            // 直接调用 handler（绕过 AiToolExecutor 的 Sa-Token 权限检查）
             AiToolRequest aiRequest = AiToolRequest.builder()
                     .sessionId(null)
                     .userId(null)
                     .toolName(displayName)
                     .params(paramMap)
+                    .source("MCP_SERVER")
                     .build();
-            AiToolResult result = definition.getHandler().execute(aiRequest);
+            AiToolResult result = toolExecutor.execute(aiRequest);
 
             long duration = System.currentTimeMillis() - started;
             log.info("mcp.call success tool={} duration={}ms", displayName, duration);

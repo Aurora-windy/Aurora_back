@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.lang.reflect.Method;
 
 /**
  * MCP Client 管理器（T-M2 核心）。
@@ -31,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 设计决策：
  * - 每个 server 一个 McpSyncClient 实例，由 ConcurrentHashMap 管理生命周期
  * - 工具名格式：mcp.<serverCode>.<toolName>（点号经 toWireName 映射为 mcp__<serverCode>__<toolName>）
- * - 所有 MCP 工具一律 mutation=true（spec 决策 #3：外部 server 不可信，统一走确认流）
+ * - 远程工具优先遵循只读/破坏性 annotation；无法判断时默认 mutation=true
  */
 @Slf4j
 @Component
@@ -103,7 +104,7 @@ public class McpClientManager {
                 AiToolDefinition def = AiToolDefinition.builder()
                         .name(toolName)
                         .description(tool.description() != null ? tool.description() : "MCP tool: " + tool.name())
-                        .mutation(true) // spec 决策 #3：MCP 工具一律走确认流
+                        .mutation(isMutationTool(tool))
                         .toolsSchemaJson(schemaJson)
                         .handler(new McpToolHandler(this, code, tool.name(), server.getTimeoutSeconds()))
                         .build();
@@ -119,6 +120,40 @@ public class McpClientManager {
             // 同步失败：确保旧连接已清理
             disconnect(code);
             throw new IllegalStateException("MCP server connection failed: " + ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * MCP 2.x 的 ToolAnnotations 在不同 SDK 小版本中暴露方式略有差异，
+     * 使用反射兼容 readOnlyHint/destructiveHint；无法可靠判断时默认修改。
+     */
+    private boolean isMutationTool(McpSchema.Tool tool) {
+        try {
+            Method annotationsMethod = tool.getClass().getMethod("annotations");
+            Object annotations = annotationsMethod.invoke(tool);
+            if (annotations == null) {
+                return true;
+            }
+            Boolean readOnly = invokeBoolean(annotations, "readOnlyHint");
+            Boolean destructive = invokeBoolean(annotations, "destructiveHint");
+            if (Boolean.TRUE.equals(destructive)) {
+                return true;
+            }
+            if (Boolean.TRUE.equals(readOnly) && !Boolean.TRUE.equals(destructive)) {
+                return false;
+            }
+        } catch (Exception ignored) {
+            // 无 annotation 或 SDK 未提供该方法时，遵循默认拒绝策略。
+        }
+        return true;
+    }
+
+    private Boolean invokeBoolean(Object target, String methodName) {
+        try {
+            Object value = target.getClass().getMethod(methodName).invoke(target);
+            return value instanceof Boolean b ? b : null;
+        } catch (Exception ignored) {
+            return null;
         }
     }
 

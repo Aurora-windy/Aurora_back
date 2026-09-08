@@ -14,14 +14,14 @@ spring:
       strict: false              # 未匹配 @DS 时回退 primary，避免启动期找不到数据源
       datasource:
         master:                  # 原 MySQL 配置平迁至此，行为不变
-          url: jdbc:mysql://localhost:3306/aurora?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-          username: ${DB_USER:root}
-          password: ${DB_PASSWORD:123456}
+          url: jdbc:mysql://${DB_HOST:}:${DB_PORT:}/${DB_NAME:}?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+          username: ${DB_USER:}
+          password: ${DB_PASSWORD:}
           driver-class-name: com.mysql.cj.jdbc.Driver
         pgvector:                # 知识库向量库 PostgreSQL(PgVector);仅 ai_knowledge_chunk 走此源
-          url: jdbc:postgresql://${PG_HOST:localhost}:${PG_PORT:5432}/${PG_DB:aurora_vector}
-          username: ${PG_USER:postgres}
-          password: ${PG_PASSWORD:postgres}
+          url: jdbc:postgresql://${PG_HOST:}:${PG_PORT:}/${PG_DB:}
+          username: ${PG_USER:}
+          password: ${PG_PASSWORD:}
           driver-class-name: org.postgresql.Driver
           lazy: true              # 懒加载：PG 未就绪时不阻塞启动，秒杀/选课等无关功能不受影响；首次检索/发布时才连接
   data:

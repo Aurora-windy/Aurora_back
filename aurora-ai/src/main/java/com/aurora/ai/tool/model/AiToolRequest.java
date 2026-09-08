@@ -14,4 +14,6 @@ public class AiToolRequest {
     private Long providerId;
     private String toolName;
     private Map<String, Object> params;
+    /** 调用入口，用于统一权限/审计链路区分。 */
+    private String source;
 }

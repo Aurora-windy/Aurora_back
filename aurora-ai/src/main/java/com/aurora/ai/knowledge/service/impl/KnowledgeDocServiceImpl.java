@@ -33,6 +33,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 
 @Slf4j
 @Service
@@ -176,7 +177,8 @@ public class KnowledgeDocServiceImpl implements KnowledgeDocService {
         AiKnowledgeDocDO doc = requireDoc(id);
         doc.setStatus(KnowledgeDocStatus.PROCESSING);
         docMapper.updateById(doc);
-        publishExecutor.execute(() -> {
+        try {
+            publishExecutor.execute(() -> {
             try {
                 publish(id);
             } catch (Exception e) {
@@ -186,7 +188,14 @@ public class KnowledgeDocServiceImpl implements KnowledgeDocService {
                 failed.setStatus(KnowledgeDocStatus.DRAFT);
                 docMapper.updateById(failed);
             }
-        });
+            });
+        } catch (RejectedExecutionException ex) {
+            log.error("文档异步发布队列已满 docId={}", id, ex);
+            AiKnowledgeDocDO failed = requireDoc(id);
+            failed.setStatus(KnowledgeDocStatus.FAILED);
+            failed.setSummary("发布任务排队失败：后台任务队列已满，请稍后重试");
+            docMapper.updateById(failed);
+        }
     }
 
     @Override

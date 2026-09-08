@@ -271,6 +271,25 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void fcLoop_mixedToolCalls_executesReadOnlyBeforeSuspendingMutation() {
+        stubStream((withTools, onToken, onToolCalls) -> onToolCalls.accept(List.of(
+                new OpenAiClientFactory.ToolCall("call_m", "edu__course__updateCapacity", "{\"courseId\":5,\"capacity\":60}"),
+                new OpenAiClientFactory.ToolCall("call_q", "edu__student__getById", "{\"studentId\":3}"))));
+
+        AgentOrchestrator.AgentRunResult result = orchestrator.streamConversation(
+                SESSION_ID, USER_ID, "查学生并修改课程", fcContext(), listener);
+
+        assertThat(result.getPendingAction()).isNotNull();
+        assertThat(result.getPendingAction().getToolName()).isEqualTo("edu.course.updateCapacity");
+        assertThat(listener.results).containsExactly("edu.student.getById");
+        verify(toolExecutor).execute(any(AiToolRequest.class));
+        verify(factory).streamChatCompletion(any(), messagesCaptor.capture(), any(), any(), any(), any(), any(), any());
+        List<Map<String, Object>> messages = messagesCaptor.getValue();
+        assertThat(messages).anyMatch(message -> "tool".equals(message.get("role"))
+                && "call_q".equals(message.get("tool_call_id")));
+    }
+
+    @Test
     void fcLoop_maxRounds_forceFinalizeWithoutTools() {
         properties.setMaxRounds(2);
         stubStream((withTools, onToken, onToolCalls) -> {

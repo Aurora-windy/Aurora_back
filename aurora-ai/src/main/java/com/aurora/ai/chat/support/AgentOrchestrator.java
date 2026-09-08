@@ -253,6 +253,8 @@ public class AgentOrchestrator {
 
                 // 本轮模型发起了工具调用：先回拼 assistant(tool_calls) 协议消息
                 messages.add(assistantToolCallsMessage(toolCalls));
+                OpenAiClientFactory.ToolCall pendingCall = null;
+                AiToolDefinition pendingDefinition = null;
                 for (OpenAiClientFactory.ToolCall call : toolCalls) {
                     // 模型回传的是 wire 名（toWireName 映射），注册表查找/展示/审计一律用还原后的真实名
                     String displayName = AiToolSchemaGenerator.fromWireName(call.name());
@@ -262,19 +264,15 @@ public class AgentOrchestrator {
                         continue;
                     }
                     if (Boolean.TRUE.equals(definition.getMutation())) {
-                        // mutation：模型只能发起，立即挂起等用户确认（本轮到此为止）
+                        // mutation：先记下待确认动作，继续执行本轮其余只读工具。
+                        // action 表当前一次只承载一个动作，因此挂起第一个修改调用。
                         listener.onToolStatus(displayName, round, "pending");
                         toolTrace.add(trace(round, displayName, "pending"));
-                        String suspendText = "\n\n已发起修改操作 " + displayName
-                                + "，系统生成待确认计划。请在下方确认或拒绝，确认前任何数据不会变更。";
-                        content.append(suspendText);
-                        listener.onToken(suspendText);
-                        log.info("agent.path={} sessionId={} round={} suspended tool={} args={}",
-                                path, sessionId, round, displayName, call.argumentsJson());
-                        return AgentRunResult.builder()
-                                .content(content.toString()).pendingAction(buildFcPendingAction(sessionId, userId, definition, call))
-                                .toolTrace(toolTrace).totalTokens(tokens[0]).path(path)
-                                .build();
+                        if (pendingCall == null) {
+                            pendingCall = call;
+                            pendingDefinition = definition;
+                        }
+                        continue;
                     }
                     // 查询类：当场执行，结果以 role:tool 回拼
                     listener.onToolStatus(displayName, round, "start");
@@ -284,6 +282,21 @@ public class AgentOrchestrator {
                     listener.onToolResult(displayName, result);
                     toolTrace.add(trace(round, displayName, ok ? "success" : "failed"));
                     messages.add(toolMessage(call.id(), toToolContent(result, displayName)));
+                }
+
+                if (pendingCall != null) {
+                    String displayName = AiToolSchemaGenerator.fromWireName(pendingCall.name());
+                    String suspendText = "\n\n已发起修改操作 " + displayName
+                            + "，系统生成待确认计划。请在下方确认或拒绝，确认前任何数据不会变更。";
+                    content.append(suspendText);
+                    listener.onToken(suspendText);
+                    log.info("agent.path={} sessionId={} round={} suspended tool={} args={}",
+                            path, sessionId, round, displayName, pendingCall.argumentsJson());
+                    return AgentRunResult.builder()
+                            .content(content.toString())
+                            .pendingAction(buildFcPendingAction(sessionId, userId, pendingDefinition, pendingCall))
+                            .toolTrace(toolTrace).totalTokens(tokens[0]).path(path)
+                            .build();
                 }
 
                 // 轮数上限 / token 预算先到为准 → 强制不带 tools 终结一轮，让模型基于已有工具结果作答
@@ -477,6 +490,7 @@ public class AgentOrchestrator {
                 .userId(userId)
                 .toolName(AiToolSchemaGenerator.fromWireName(call.name()))
                 .params(params)
+                .source("CHAT")
                 .build();
         try {
             return toolExecutor.execute(request);

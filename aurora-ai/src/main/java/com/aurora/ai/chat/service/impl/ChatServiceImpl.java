@@ -189,7 +189,7 @@ public class ChatServiceImpl implements ChatService {
                 emitter.send(SseEmitter.event().name("pending").data(actionPlanBuilder.toResp(ctx.getPendingAction())));
             } catch (IOException ignored) {
             }
-            finishStream(emitter, session, ctx,
+            finishStream(emitter, session, ctx, ctx.getPendingAction(),
                     "已识别到 EDU 数据修改请求，并生成待确认操作计划。确认前不会变更任何 EDU 数据。", null, null);
             return;
         }
@@ -216,13 +216,13 @@ public class ChatServiceImpl implements ChatService {
                 long usage = result.getTotalTokens() > 0
                         ? result.getTotalTokens()
                         : Math.max(1L, result.getContent().length() / 2); // 上游未回传用量时按字符数估算
-                finishStream(emitter, session, ctx, result.getContent(), usage, result.getToolTrace());
+                finishStream(emitter, session, ctx, result.getPendingAction(), result.getContent(), usage, result.getToolTrace());
             } catch (Exception e) {
                 // 中途断流：已发出的 token 不能丢，追加中断标记后落库
                 String msg = seen.length() > 0
                         ? seen + "\n\n（流式生成中断：" + e.getMessage() + "）"
                         : "模型调用失败：" + e.getMessage();
-                finishStream(emitter, session, ctx, msg, 0L, null);
+                finishStream(emitter, session, ctx, null, msg, 0L, null);
             } finally {
                 RequestContextHolder.resetRequestAttributes();
             }
@@ -230,15 +230,16 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private void finishStream(SseEmitter emitter, AiChatSessionDO session, AgentOrchestrator.StreamContext ctx,
-                              String content, Long usage, List<Map<String, Object>> toolTrace) {
+                              AiAgentActionDO pendingAction, String content, Long usage,
+                              List<Map<String, Object>> toolTrace) {
         List<KnowledgeCitation> citations = ctx.getCitations() == null ? List.of() : ctx.getCitations();
         AiChatMessageDO assistantMessage = insertMessage(session.getId(), "assistant", content,
                 toJson(Map.of("systemPrompt", ctx.getSystemPrompt(),
                         "citations", citations,
                         "toolTrace", toolTrace == null ? List.of() : toolTrace)));
-        if (ctx.getPendingAction() != null) {
-            ctx.getPendingAction().setMessageId(assistantMessage.getId());
-            actionMapper.updateById(ctx.getPendingAction());
+        if (pendingAction != null) {
+            pendingAction.setMessageId(assistantMessage.getId());
+            actionMapper.updateById(pendingAction);
         }
         session.setLastMessageAt(LocalDateTime.now());
         sessionMapper.updateById(session);

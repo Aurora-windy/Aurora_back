@@ -184,6 +184,7 @@ public class Neo4jGraphService {
         List<Map<String, Object>> errors = castList(resp.get("errors"));
         if (errors != null && !errors.isEmpty()) {
             log.warn("Neo4j 执行错误: {}", errors);
+            throw new IllegalStateException("Neo4j 执行失败: " + errors);
         }
     }
 
@@ -371,7 +372,7 @@ public class Neo4jGraphService {
     /** 图谱连接状态与规模概览（未启用/不可达时返回 closed 空数据，不打挂调用方） */
     public GraphInfo graphInfo() {
         if (!properties.isEnabled()) {
-            return new GraphInfo("closed", "Neo4j 未启用", 0, 0);
+            return new GraphInfo("disabled", "基础设施未就绪：Neo4j 未启用，请设置 AURORA_NEO4J_ENABLED=true", 0, 0);
         }
         try {
             List<Map<String, Object>> results = runCypherBatch(List.of(
@@ -382,7 +383,7 @@ public class Neo4jGraphService {
             return new GraphInfo("open", "Neo4j", entity, rel);
         } catch (Exception e) {
             log.warn("Neo4j 图谱信息获取失败: {}", e.getMessage());
-            return new GraphInfo("closed", "Neo4j 不可达", 0, 0);
+            return new GraphInfo("not_ready", "基础设施未就绪：Neo4j 不可达，请检查容器和连接配置", 0, 0);
         }
     }
 
@@ -474,11 +475,15 @@ public class Neo4jGraphService {
                     .body(String.class);
             @SuppressWarnings("unchecked")
             Map<String, Object> map = objectMapper.readValue(resp, Map.class);
+            List<Map<String, Object>> errors = castList(map.get("errors"));
+            if (errors != null && !errors.isEmpty()) {
+                throw new IllegalStateException("Neo4j 查询失败: " + errors);
+            }
             List<Map<String, Object>> results = castList(map.get("results"));
             return results == null ? List.of() : results;
         } catch (Exception e) {
             log.warn("Neo4j 批量查询失败: {}", e.getMessage());
-            return List.of();
+            throw new IllegalStateException("Neo4j 批量查询失败: " + e.getMessage(), e);
         }
     }
 

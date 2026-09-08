@@ -9,6 +9,9 @@ public final class KnowledgeDocStatus {
      */
     public static final String PROCESSING = "PROCESSING";
 
+    /** 异步发布队列拒绝或执行失败时的明确终态。 */
+    public static final String FAILED = "FAILED";
+
     public static final String PUBLISHED = "PUBLISHED";
     public static final String OFFLINE = "OFFLINE";
 
